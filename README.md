@@ -5,7 +5,11 @@ outputs (direct GPIO or PCF8574 / AW9523(B) I2C expanders) coupled to segments, 
 segment off cuts that section's actual supply power - with anti-flash power sequencing, PSU
 stabilization, a dedicated Master AC relay and optional main-power sync.
 
+This usermod is heavily based on the multi_relay usermod made by blazoncek (see the Heritage section below).
+
 Requires a recent WLED base (v0.16 / 17.0-dev nightlies) with the external-usermod build system.
+
+Specifically designed with the [QuinLED Dig-Next-2](https://dig-next.info/dig-next-2.html) WLED controller, enabling the individual power output control its hardware features.
 
 ## Installation
 
