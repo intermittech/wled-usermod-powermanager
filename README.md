@@ -18,7 +18,7 @@ extends = env:esp32dev
 custom_usermods = https://github.com/intermittech/wled-usermod-powermanager.git
 ```
 
-(Pin a release with `#v1.0.0` at the end of the URL. See `examples/platformio_override.ini`
+(This always builds the newest version automatically. See `examples/platformio_override.ini`
 for complete environments including all compile-time options.)
 
 **Or as a local copy:** copy this repository into your WLED tree as
