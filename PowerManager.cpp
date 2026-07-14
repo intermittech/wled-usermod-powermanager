@@ -3,94 +3,94 @@
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 // external usermod: this ID is not present in WLED's const.h (overridable in case of a clash)
-#ifndef USERMOD_ID_POWER_MANAGER
-  #define USERMOD_ID_POWER_MANAGER 200
+#ifndef USERMOD_ID_POWERMANAGER
+  #define USERMOD_ID_POWERMANAGER 200
 #endif
 
-#ifndef POWER_MANAGER_MAX_RELAYS
-  #define POWER_MANAGER_MAX_RELAYS 4
+#ifndef POWERMANAGER_MAX_RELAYS
+  #define POWERMANAGER_MAX_RELAYS 4
 #else
-  #if POWER_MANAGER_MAX_RELAYS>16
-    #undef POWER_MANAGER_MAX_RELAYS
-    #define POWER_MANAGER_MAX_RELAYS 16
+  #if POWERMANAGER_MAX_RELAYS>16
+    #undef POWERMANAGER_MAX_RELAYS
+    #define POWERMANAGER_MAX_RELAYS 16
     #warning Maximum relays set to 16
   #endif
 #endif
 
-#ifndef POWER_MANAGER_PINS
-  #define POWER_MANAGER_PINS -1
-  #define POWER_MANAGER_ENABLED false
+#ifndef POWERMANAGER_PINS
+  #define POWERMANAGER_PINS -1
+  #define POWERMANAGER_ENABLED false
 #else
-  #define POWER_MANAGER_ENABLED true
+  #define POWERMANAGER_ENABLED true
 #endif
 
-#ifndef POWER_MANAGER_HA_DISCOVERY
-  #define POWER_MANAGER_HA_DISCOVERY false
+#ifndef POWERMANAGER_HA_DISCOVERY
+  #define POWERMANAGER_HA_DISCOVERY false
 #endif
 
-#ifndef POWER_MANAGER_DELAYS
-  #define POWER_MANAGER_DELAYS 0
+#ifndef POWERMANAGER_DELAYS
+  #define POWERMANAGER_DELAYS 0
 #endif
 
-#ifndef POWER_MANAGER_EXTERNALS
-  #define POWER_MANAGER_EXTERNALS false
+#ifndef POWERMANAGER_EXTERNALS
+  #define POWERMANAGER_EXTERNALS false
 #endif
 
-#ifndef POWER_MANAGER_INVERTS
-  #define POWER_MANAGER_INVERTS false
+#ifndef POWERMANAGER_INVERTS
+  #define POWERMANAGER_INVERTS false
 #endif
 
-#ifndef POWER_MANAGER_SEGMENTS
-  #define POWER_MANAGER_SEGMENTS -1
+#ifndef POWERMANAGER_SEGMENTS
+  #define POWERMANAGER_SEGMENTS -1
 #endif
 
-#ifndef POWER_MANAGER_STABILIZE
-  #define POWER_MANAGER_STABILIZE 0
+#ifndef POWERMANAGER_STABILIZE
+  #define POWERMANAGER_STABILIZE 1
 #endif
 
 // relay 0 doubles as the dedicated "Master AC relay" (e.g. the AC-side trigger of the main PSU):
 // when enabled it is on while any segment is on. Only relay 0 can take this role.
-#ifndef POWER_MANAGER_MASTER
-  #define POWER_MANAGER_MASTER false
+#ifndef POWERMANAGER_MASTER
+  #define POWERMANAGER_MASTER false
 #endif
 
 // sync main power with the Master AC relay: when it cuts because every segment was switched off,
 // main power is switched off too (UI/MQTT/HA show off); switching a segment on restores it
-#ifndef POWER_MANAGER_MASTER_MAIN_SYNC
-  #define POWER_MANAGER_MASTER_MAIN_SYNC false
+#ifndef POWERMANAGER_MASTER_MAIN_SYNC
+  #define POWERMANAGER_MASTER_MAIN_SYNC false
 #endif
 
 // take over all relays: unconfigured relays (pin set, but no segment link and not externally
 // controlled) stay off until they are given a role, instead of following main power (default WLED
 // behavior). Avoids surprises once part of the relays is segment-coupled.
-#ifndef POWER_MANAGER_TAKEOVER
-  #define POWER_MANAGER_TAKEOVER false
+#ifndef POWERMANAGER_TAKEOVER
+  #define POWERMANAGER_TAKEOVER false
 #endif
 
 // special relay_t.segment value: relay is on while *any* segment is on (master PSU mode)
-#define POWER_MANAGER_SEG_ANY 99
+#define POWERMANAGER_SEG_ANY 99
 
-#ifndef POWER_MANAGER_NAMES
-  #define POWER_MANAGER_NAMES ""
+#ifndef POWERMANAGER_NAMES
+  #define POWERMANAGER_NAMES ""
 #endif
 
-#ifndef POWER_MANAGER_NAME_LEN
-  #define POWER_MANAGER_NAME_LEN 33 // max relay name length including terminator
+#ifndef POWERMANAGER_NAME_LEN
+  #define POWERMANAGER_NAME_LEN 33 // max relay name length including terminator
 #endif
 
 // anti-flash blackout around segment power-on: black frames sent before / kept up after switching the port
-#ifndef POWER_MANAGER_BLACK_PRE_MS
-  #define POWER_MANAGER_BLACK_PRE_MS 200
+#ifndef POWERMANAGER_BLACK_PRE_MS
+  #define POWERMANAGER_BLACK_PRE_MS 200
 #endif
-#ifndef POWER_MANAGER_BLACK_POST_MS
-  #define POWER_MANAGER_BLACK_POST_MS 200
+#ifndef POWERMANAGER_BLACK_POST_MS
+  #define POWERMANAGER_BLACK_POST_MS 200
 #endif
 
 // minimum time a port stays off before it may be re-energised: lets the LED strip's capacitors
 // discharge so the chips reset properly (re-powering a half-discharged strip can latch a white
 // flash no matter what data is streaming)
-#ifndef POWER_MANAGER_MIN_OFF_MS
-  #define POWER_MANAGER_MIN_OFF_MS 2000
+#ifndef POWERMANAGER_MIN_OFF_MS
+  #define POWERMANAGER_MIN_OFF_MS 2000
 #endif
 
 // power-on blackout phases (relay_t.boPhase)
@@ -100,7 +100,7 @@
 #define BO_FADE 3  // still black; cancelled stale transition is being destroyed, clean fade starts next frame
 
 #define BO_FADE_TIMEOUT_MS        250  // max wait in BO_FADE for a cancelled transition to be destroyed
-#define POWER_MANAGER_FADE_GRACE_MS 1000 // extra wait for a lingering fade-out before cutting power anyway
+#define POWERMANAGER_FADE_GRACE_MS 1000 // extra wait for a lingering fade-out before cutting power anyway
 
 #define WLED_DEBOUNCE_THRESHOLD 50 //only consider button input of at least 50ms as valid (debouncing)
 
@@ -117,12 +117,12 @@
 #endif
 
 #if defined(USERMOD_USE_PCF8574)
-  #define POWER_MANAGER_EXPANDER EXPANDER_PCF8574
+  #define POWERMANAGER_EXPANDER EXPANDER_PCF8574
 #elif defined(USERMOD_USE_AW9523)
-  #define POWER_MANAGER_EXPANDER EXPANDER_AW9523
+  #define POWERMANAGER_EXPANDER EXPANDER_AW9523
 #else
-  #ifndef POWER_MANAGER_EXPANDER
-    #define POWER_MANAGER_EXPANDER EXPANDER_NONE
+  #ifndef POWERMANAGER_EXPANDER
+    #define POWERMANAGER_EXPANDER EXPANDER_NONE
   #endif
 #endif
 
@@ -138,10 +138,10 @@
   #define AW9523_P0_PUSHPULL true // P0_x port drive mode: push-pull (recommended for relays), false = open-drain
 #endif
 
-#if POWER_MANAGER_EXPANDER == EXPANDER_AW9523
-  #define POWER_MANAGER_EXPANDER_ADDR AW9523_ADDRESS
+#if POWERMANAGER_EXPANDER == EXPANDER_AW9523
+  #define POWERMANAGER_EXPANDER_ADDR AW9523_ADDRESS
 #else
-  #define POWER_MANAGER_EXPANDER_ADDR PCF8574_ADDRESS
+  #define POWERMANAGER_EXPANDER_ADDR PCF8574_ADDRESS
 #endif
 
 // AW9523(B) register map (registers 0x03, 0x05, 0x07 and 0x13 are the P1 counterparts of P0 at 0x02, 0x04, 0x06 and 0x12)
@@ -186,7 +186,7 @@ typedef struct relay_t {
   uint16_t delayOn;     // seconds to wait before switching the relay on
   uint16_t delayOff;    // seconds to wait before switching the relay off
   int8_t segment;       // segment this relay follows: -1 = not coupled, 0..MAX_NUM_SEGMENTS-1 = segment id, 99 = any segment on
-  char name[POWER_MANAGER_NAME_LEN]; // user-friendly name (e.g. physical output port), shown in UI/Info/HA
+  char name[POWERMANAGER_NAME_LEN]; // user-friendly name (e.g. physical output port), shown in UI/Info/HA
 } Relay;
 
 
@@ -194,14 +194,14 @@ class PowerManager : public Usermod {
 
   private:
     // array of relays
-    Relay    _relay[POWER_MANAGER_MAX_RELAYS];
+    Relay    _relay[POWERMANAGER_MAX_RELAYS];
 
     uint32_t _switchTimerStart; // switch timer start time
     // segment coupling & power sequencing state (see section comment in the implementation)
-    uint32_t _pendingSince[POWER_MANAGER_MAX_RELAYS]; // start of a pending delayed switch (0 = nothing pending)
-    uint32_t _boStart[POWER_MANAGER_MAX_RELAYS];      // start of the current blackout phase
-    uint32_t _onAt[POWER_MANAGER_MAX_RELAYS];         // last switch-on time (master stabilization window)
-    uint32_t _offAt[POWER_MANAGER_MAX_RELAYS];        // last switch-off time (minimum off-time gate)
+    uint32_t _pendingSince[POWERMANAGER_MAX_RELAYS]; // start of a pending delayed switch (0 = nothing pending)
+    uint32_t _boStart[POWERMANAGER_MAX_RELAYS];      // start of the current blackout phase
+    uint32_t _onAt[POWERMANAGER_MAX_RELAYS];         // last switch-on time (master stabilization window)
+    uint32_t _offAt[POWERMANAGER_MAX_RELAYS];        // last switch-off time (minimum off-time gate)
     bool     _oldMode;          // old brightness
     bool     enabled;           // usermod enabled
     bool     initDone;          // status of initialisation
@@ -215,7 +215,7 @@ class PowerManager : public Usermod {
     uint16_t stabilizeSec;      // PSU stabilization (seconds): after the Master AC relay powers on,
                                 // the strip stays black and dependent coupled relays wait this long
     uint16_t minOffMs;          // minimum port off-time before re-energising (LED capacitor discharge)
-    bool     masterEnabled;     // relay 0 acts as the Master AC relay (segment = POWER_MANAGER_SEG_ANY)
+    bool     masterEnabled;     // relay 0 acts as the Master AC relay (segment = POWERMANAGER_SEG_ANY)
     bool     masterMainSync;    // main power follows the Master AC relay (off when it cuts, back on with a segment)
     bool     _autoMainOff;      // this usermod switched main power off (a segment turning on restores it)
     bool     takeOverRelays;    // unconfigured relays stay off instead of following main power
@@ -276,7 +276,7 @@ class PowerManager : public Usermod {
     // invoke fn(Segment&) for every active segment the relay is coupled to
     // (its own segment, or all of them for an "any segment" master relay)
     template<typename FN> void forOwnedSegments(uint8_t r, FN fn) {
-      if (_relay[r].segment == POWER_MANAGER_SEG_ANY) {
+      if (_relay[r].segment == POWERMANAGER_SEG_ANY) {
         for (unsigned s = 0; s < strip.getSegmentsNum(); s++) {
           Segment &seg = strip.getSegment(s);
           if (seg.isActive()) fn(seg);
@@ -326,7 +326,7 @@ class PowerManager : public Usermod {
      * getId() allows you to optionally give your V2 usermod an unique ID (please define it in const.h!).
      * This could be used in the future for the system to determine whether your usermod is installed.
      */
-    inline uint16_t getId() override { return USERMOD_ID_POWER_MANAGER; }
+    inline uint16_t getId() override { return USERMOD_ID_POWERMANAGER; }
 
     /**
      * switch relay on/off
@@ -428,7 +428,7 @@ void PowerManager::publishMqtt(int relay) {
 void PowerManager::handleOffTimer() {
   unsigned long now = millis();
   bool activeRelays = false;
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].active && _switchTimerStart > 0 && now - _switchTimerStart > (unsigned long)(offMode ? _relay[i].delayOff : _relay[i].delayOn)*1000) {
       if (!_relay[i].external) switchRelay(i, !offMode);
       _relay[i].active = false;
@@ -456,7 +456,7 @@ void PowerManager::InitHtmlAPIHandle() {  // https://github.com/me-no-dev/ESPAsy
     String error = "";
     //int params = request->params();
     janswer = F("{\"NoOfRelays\":");
-    janswer += String(POWER_MANAGER_MAX_RELAYS) + ",";
+    janswer += String(POWERMANAGER_MAX_RELAYS) + ",";
 
     if (getActiveRelayCount()) {
       // Commands
@@ -464,7 +464,7 @@ void PowerManager::InitHtmlAPIHandle() {  // https://github.com/me-no-dev/ESPAsy
         /**** Switch ****/
         AsyncWebParameter* p = request->getParam(FPSTR(_switch));
         // Get Values
-        for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+        for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
           int value = getValue(p->value(), ',', i);
           if (value==-1) {
             error = F("There must be as many arguments as relays");
@@ -477,7 +477,7 @@ void PowerManager::InitHtmlAPIHandle() {  // https://github.com/me-no-dev/ESPAsy
         /**** Toggle ****/
         AsyncWebParameter* p = request->getParam(FPSTR(_toggle));
         // Get Values
-        for (int i=0;i<POWER_MANAGER_MAX_RELAYS;i++) {
+        for (int i=0;i<POWERMANAGER_MAX_RELAYS;i++) {
           int value = getValue(p->value(), ',', i);
           if (value==-1) {
             error = F("There must be as many arguments as relays");
@@ -495,7 +495,7 @@ void PowerManager::InitHtmlAPIHandle() {  // https://github.com/me-no-dev/ESPAsy
 
     // Status response
     char sbuf[16];
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       sprintf_P(sbuf, PSTR("\"%d\":%d,"), i, (_relay[i].pin<0 ? -1 : (int)_relay[i].state));
       janswer += sbuf;
     }
@@ -606,33 +606,33 @@ void PowerManager::initAW9523(uint16_t state, uint16_t used) {
 
 PowerManager::PowerManager()
   : _switchTimerStart(0)
-  , enabled(POWER_MANAGER_ENABLED)
+  , enabled(POWERMANAGER_ENABLED)
   , initDone(false)
-  , expanderType(POWER_MANAGER_EXPANDER)
-  , expanderAddr(POWER_MANAGER_EXPANDER_ADDR)
+  , expanderType(POWERMANAGER_EXPANDER)
+  , expanderAddr(POWERMANAGER_EXPANDER_ADDR)
   , awP0PushPull(AW9523_P0_PUSHPULL)
   , awFound(false)
   , awOutputState(0)
-  , boPreMs(POWER_MANAGER_BLACK_PRE_MS)
-  , boPostMs(POWER_MANAGER_BLACK_POST_MS)
-  , stabilizeSec(POWER_MANAGER_STABILIZE)
-  , minOffMs(POWER_MANAGER_MIN_OFF_MS)
-  , masterEnabled(POWER_MANAGER_MASTER)
-  , masterMainSync(POWER_MANAGER_MASTER_MAIN_SYNC)
+  , boPreMs(POWERMANAGER_BLACK_PRE_MS)
+  , boPostMs(POWERMANAGER_BLACK_POST_MS)
+  , stabilizeSec(POWERMANAGER_STABILIZE)
+  , minOffMs(POWERMANAGER_MIN_OFF_MS)
+  , masterEnabled(POWERMANAGER_MASTER)
+  , masterMainSync(POWERMANAGER_MASTER_MAIN_SYNC)
   , _autoMainOff(false)
-  , takeOverRelays(POWER_MANAGER_TAKEOVER)
-  , HAautodiscovery(POWER_MANAGER_HA_DISCOVERY)
+  , takeOverRelays(POWERMANAGER_TAKEOVER)
+  , HAautodiscovery(POWERMANAGER_HA_DISCOVERY)
   , periodicBroadcastSec(60)
   , lastBroadcast(0)
 {
-  const int8_t defPins[] = {POWER_MANAGER_PINS};
-  const int8_t relayDelays[] = {POWER_MANAGER_DELAYS};
-  const bool relayExternals[] = {POWER_MANAGER_EXTERNALS};
-  const bool relayInverts[] = {POWER_MANAGER_INVERTS};
-  const int8_t relaySegments[] = {POWER_MANAGER_SEGMENTS};
-  const char* const relayNames[] = {POWER_MANAGER_NAMES};
+  const int8_t defPins[] = {POWERMANAGER_PINS};
+  const int8_t relayDelays[] = {POWERMANAGER_DELAYS};
+  const bool relayExternals[] = {POWERMANAGER_EXTERNALS};
+  const bool relayInverts[] = {POWERMANAGER_INVERTS};
+  const int8_t relaySegments[] = {POWERMANAGER_SEGMENTS};
+  const char* const relayNames[] = {POWERMANAGER_NAMES};
 
-  for (size_t i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (size_t i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     _relay[i].pin      = i < COUNT_OF(defPins) ? defPins[i] : -1;
     _relay[i].delayOn  = i < COUNT_OF(relayDelays) ? relayDelays[i] : 0;
     _relay[i].delayOff = i < COUNT_OF(relayDelays) ? relayDelays[i] : 0;
@@ -648,22 +648,22 @@ PowerManager::PowerManager()
     _boStart[i]        = 0;
     _onAt[i]           = 0;
     _offAt[i]          = 0;
-    strlcpy(_relay[i].name, i < COUNT_OF(relayNames) ? relayNames[i] : "", POWER_MANAGER_NAME_LEN);
+    strlcpy(_relay[i].name, i < COUNT_OF(relayNames) ? relayNames[i] : "", POWERMANAGER_NAME_LEN);
   }
   // relay 0 is the dedicated Master AC relay slot; only it may follow all segments
   if (masterEnabled) {
-    _relay[0].segment = POWER_MANAGER_SEG_ANY;
+    _relay[0].segment = POWERMANAGER_SEG_ANY;
     if (_relay[0].delayOff == 0) _relay[0].delayOff = 5; // default PSU anti-cycling hold (config overrides)
   }
-  for (size_t i=1; i<POWER_MANAGER_MAX_RELAYS; i++)
-    if (_relay[i].segment == POWER_MANAGER_SEG_ANY) _relay[i].segment = -1;
+  for (size_t i=1; i<POWERMANAGER_MAX_RELAYS; i++)
+    if (_relay[i].segment == POWERMANAGER_SEG_ANY) _relay[i].segment = -1;
 }
 
 /**
  * switch relay on/off
  */
 void PowerManager::switchRelay(uint8_t relay, bool mode) {
-  if (relay>=POWER_MANAGER_MAX_RELAYS || _relay[relay].pin<0) return;
+  if (relay>=POWERMANAGER_MAX_RELAYS || _relay[relay].pin<0) return;
   if (_relay[relay].state != mode) { // timestamps drive the stabilization and minimum off-time windows
     if (mode) _onAt[relay]  = millis();
     else      _offAt[relay] = millis();
@@ -672,7 +672,7 @@ void PowerManager::switchRelay(uint8_t relay, bool mode) {
   if (expanderType == EXPANDER_PCF8574 && _relay[relay].pin >= 100) {
     // we need to send all outputs at the same time
     uint8_t state = 0;
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       if (_relay[i].pin < 100) continue;
       uint8_t pin = _relay[i].pin - 100;
       state |= (_relay[i].invert ? !_relay[i].state : _relay[i].state) << pin; // fill relay states for all pins
@@ -694,7 +694,7 @@ void PowerManager::switchRelay(uint8_t relay, bool mode) {
 
 uint8_t PowerManager::getActiveRelayCount() {
   uint8_t count = 0;
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) if (_relay[i].pin>=0) count++;
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) if (_relay[i].pin>=0) count++;
   return count;
 }
 
@@ -706,7 +706,7 @@ uint8_t PowerManager::getActiveRelayCount() {
  * settings only, not via this API.
  */
 void PowerManager::setSegmentLink(uint8_t relay, int seg, bool persist) {
-  if (relay >= POWER_MANAGER_MAX_RELAYS) return;
+  if (relay >= POWERMANAGER_MAX_RELAYS) return;
   if (relay == 0 && masterEnabled) return; // Master AC relay is not re-linkable
   if (seg < -1 || seg >= (int)strip.getMaxSegments()) seg = -1;
   if (_relay[relay].segment == seg) return;
@@ -732,7 +732,7 @@ bool PowerManager::onMqttMessage(char* topic, char* payload) {
     char *numEnd;
     uint8_t relay = strtoul(topic+7, &numEnd, 10);
     // relay number may have more than one digit; "/command" must directly follow it
-    if (numEnd != topic+7 && strcmp_P(numEnd, _Command) == 0 && relay<POWER_MANAGER_MAX_RELAYS) {
+    if (numEnd != topic+7 && strcmp_P(numEnd, _Command) == 0 && relay<POWERMANAGER_MAX_RELAYS) {
       String action = payload;
       if (action == "on") {
         if (_relay[relay].external) switchRelay(relay, true);
@@ -760,7 +760,7 @@ void PowerManager::onMqttConnect(bool sessionPresent) {
     strcat_P(subuf, PSTR("/relay/#"));
     mqtt->subscribe(subuf, 0);
     if (HAautodiscovery) publishHomeAssistantAutodiscovery();
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       if (_relay[i].pin<0) continue;
       publishMqtt(i); //publish current state
     }
@@ -768,7 +768,7 @@ void PowerManager::onMqttConnect(bool sessionPresent) {
 }
 
 void PowerManager::publishHomeAssistantAutodiscovery() {
-  for (int i = 0; i < POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i = 0; i < POWERMANAGER_MAX_RELAYS; i++) {
     char uid[24], json_str[1024], buf[128];
     size_t payload_size;
     sprintf_P(uid, PSTR("%s_sw%d"), escapedMac.c_str(), i);
@@ -819,7 +819,7 @@ void PowerManager::setup() {
 
   uint16_t state = 0; // desired expander output levels (invert applied)
   uint16_t used  = 0; // expander ports used by relays
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (isCoupled(i)) _relay[i].external = false; // coupled relays are exclusively segment-driven
     // coupled relays boot in Off state; handleSegmentCoupling() syncs them once segments are up
     if (_relay[i].pin >= 100) {
@@ -869,7 +869,7 @@ void PowerManager::loop() {
   if (_oldMode != offMode) {
     _oldMode = offMode;
     _switchTimerStart = millis();
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       // with "take over all relays", unconfigured relays do not follow main power (stay off)
       if ((_relay[i].pin>=0) && !_relay[i].external && !isCoupled(i) && !takeOverRelays) _relay[i].active = true;
     }
@@ -883,7 +883,7 @@ void PowerManager::loop() {
 // Segment coupling & power sequencing
 //
 // A relay with `segment` >= 0 is exclusively segment-driven: on while its segment is on (or,
-// for POWER_MANAGER_SEG_ANY master relays, while any segment is on) and global power is on.
+// for POWERMANAGER_SEG_ANY master relays, while any segment is on) and global power is on.
 //
 // Power-off: segment off -> wait for its fade-out to finish -> wait delay-off-s -> port off
 //            (whichever ends later; toggling the segment back on cancels the pending cut).
@@ -958,8 +958,8 @@ void PowerManager::restartSegmentFade(uint8_t r) {
 bool PowerManager::masterHoldsOn() {
   if (stabilizeSec == 0) return false;
   unsigned long now = millis();
-  for (int m=0; m<POWER_MANAGER_MAX_RELAYS; m++) {
-    if (_relay[m].pin < 0 || _relay[m].segment != POWER_MANAGER_SEG_ANY) continue;
+  for (int m=0; m<POWERMANAGER_MAX_RELAYS; m++) {
+    if (_relay[m].pin < 0 || _relay[m].segment != POWERMANAGER_SEG_ANY) continue;
     if (!_relay[m].state) return true; // master not on yet (its own power-on sequence is pending)
     if (now - _onAt[m] < (uint32_t)stabilizeSec * 1000) return true; // still stabilizing
   }
@@ -971,8 +971,8 @@ bool PowerManager::masterHoldsOn() {
  * the last to cut power: the sections it feeds may have longer off-delays than the master.
  */
 bool PowerManager::dependentsStillOn() {
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
-    if (_relay[i].pin >= 0 && isCoupled(i) && _relay[i].segment != POWER_MANAGER_SEG_ANY && _relay[i].state) return true;
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
+    if (_relay[i].pin >= 0 && isCoupled(i) && _relay[i].segment != POWERMANAGER_SEG_ANY && _relay[i].state) return true;
   }
   return false;
 }
@@ -1011,11 +1011,11 @@ void PowerManager::handleSegmentCoupling() {
     }
   }
 
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].pin < 0 || !isCoupled(i)) continue;
 
     bool segOn = false;
-    if (_relay[i].segment == POWER_MANAGER_SEG_ANY) {
+    if (_relay[i].segment == POWERMANAGER_SEG_ANY) {
       forOwnedSegments(i, [&segOn](Segment &seg) { segOn |= seg.on; });
     } else if ((uint8_t)_relay[i].segment < strip.getSegmentsNum() && strip.getSegment(_relay[i].segment).isActive()) {
       _relay[i].segSeen = true;
@@ -1041,7 +1041,7 @@ void PowerManager::handleSegmentCoupling() {
       // PSU first: while a master relay is still powering up or stabilizing, keep the delay-on
       // timer unarmed so delay-on-s starts counting only once the PSU is ready (sequential).
       // With the master already up and past its window, only delay-on-s applies.
-      if (_relay[i].segment != POWER_MANAGER_SEG_ANY && masterHoldsOn()) { _pendingSince[i] = 0; continue; }
+      if (_relay[i].segment != POWERMANAGER_SEG_ANY && masterHoldsOn()) { _pendingSince[i] = 0; continue; }
       if (_pendingSince[i] == 0) _pendingSince[i] = now ? now : 1;   // 0 means "nothing pending"
       if (now - _pendingSince[i] < (uint32_t)_relay[i].delayOn * 1000) continue;
       if (now - _offAt[i] < minOffMs) continue; // let the LEDs discharge after a cut (prevents white flash)
@@ -1058,20 +1058,20 @@ void PowerManager::handleSegmentCoupling() {
       if (_pendingSince[i] == 0) _pendingSince[i] = now ? now : 1;
       // master relay: hold while any dependent section relay is still on - the PSU must be the
       // last to cut. Its delay-off then counts from the moment the last section switched off.
-      if (_relay[i].segment == POWER_MANAGER_SEG_ANY && dependentsStillOn()) {
+      if (_relay[i].segment == POWERMANAGER_SEG_ANY && dependentsStillOn()) {
         _pendingSince[i] = now ? now : 1;
         continue;
       }
       unsigned long elapsed = now - _pendingSince[i];
       // let a running fade-out finish before cutting power (bounded in case transition state lingers)
-      if (isSegFading(i) && elapsed < strip.getTransition() + POWER_MANAGER_FADE_GRACE_MS) continue;
+      if (isSegFading(i) && elapsed < strip.getTransition() + POWERMANAGER_FADE_GRACE_MS) continue;
       if (elapsed >= (uint32_t)_relay[i].delayOff * 1000) {
         _pendingSince[i] = 0;
         _relay[i].boPhase = BO_NONE; // abandon a power-on sequence still in a late phase
         switchRelay(i, false);
         // main power sync, off-half: the master just cut because every segment was switched
         // off (bri > 0 rules out a main power press as the cause) - reflect it on main power
-        if (_relay[i].segment == POWER_MANAGER_SEG_ANY && masterMainSync && bri > 0) {
+        if (_relay[i].segment == POWERMANAGER_SEG_ANY && masterMainSync && bri > 0) {
           toggleOnOff(); // off (preserves briLast)
           stateUpdated(CALL_MODE_DIRECT_CHANGE);
           _autoMainOff = true;
@@ -1092,12 +1092,12 @@ void PowerManager::handleBlackout() {
   // an "any segment" master) would mistake for the stale transition it is waiting on - stalling
   // against it until the safety timeout and staggering the fades instead of starting them in
   // parallel. A duplicate restart of a same-pass fresh transition is a no-op.
-  uint16_t fadeReady = 0; // bitmask, POWER_MANAGER_MAX_RELAYS is capped at 16
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  uint16_t fadeReady = 0; // bitmask, POWERMANAGER_MAX_RELAYS is capped at 16
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].boPhase == BO_FADE && (!isSegFading(i) || now - _boStart[i] > BO_FADE_TIMEOUT_MS))
       fadeReady |= (uint16_t)1 << i;
   }
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     switch (_relay[i].boPhase) {
       case BO_PRE: // black frames streaming, port still off
         if (now - _boStart[i] >= boPreMs) {
@@ -1109,7 +1109,7 @@ void PowerManager::handleBlackout() {
       case BO_POST: { // port on, stay black over the power ramp
         uint32_t hold = boPostMs;
         // master (any-segment) relay: extend the all-black hold by the PSU stabilization time
-        if (_relay[i].segment == POWER_MANAGER_SEG_ANY) hold += (uint32_t)stabilizeSec * 1000;
+        if (_relay[i].segment == POWERMANAGER_SEG_ANY) hold += (uint32_t)stabilizeSec * 1000;
         if (now - _boStart[i] >= hold) beginFadePhase(i);
         break;
       }
@@ -1129,9 +1129,9 @@ void PowerManager::handleBlackout() {
  */
 void PowerManager::handleOverlayDraw() {
   if (!enabled) return;
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].boPhase == BO_NONE || _relay[i].pin < 0) continue;
-    if (_relay[i].segment == POWER_MANAGER_SEG_ANY) { // master relay: black out the whole strip
+    if (_relay[i].segment == POWERMANAGER_SEG_ANY) { // master relay: black out the whole strip
       unsigned len = strip.getLengthTotal();
       for (unsigned p = 0; p < len; p++) strip.setPixelColor(p, 0);
       continue;
@@ -1167,7 +1167,7 @@ bool PowerManager::handleButton(uint8_t b) {
   }
 
   bool handled = false;
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].button == b && _relay[i].external) {
       handled = true;
     }
@@ -1187,7 +1187,7 @@ bool PowerManager::handleButton(uint8_t b) {
     if (buttons[b].longPressed == buttons[b].pressedBefore) return handled;
       
     if (now - buttons[b].pressedTime > WLED_DEBOUNCE_THRESHOLD) { //fire edge event only after 50ms without change (debounce)
-      for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+      for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
         if (_relay[i].button == b && !isCoupled(i)) {
           switchRelay(i, buttons[b].pressedBefore);
           buttons[b].longPressed = buttons[b].pressedBefore; //save the last "long term" switch state
@@ -1235,7 +1235,7 @@ bool PowerManager::handleButton(uint8_t b) {
   if (buttons[b].waitTime && now - buttons[b].waitTime > 350 && !buttons[b].pressedBefore) {
     buttons[b].waitTime = 0;
     //shortPressAction(b); //not exposed
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       if (_relay[i].button == b && !isCoupled(i)) {
         toggleRelay(i);
       }
@@ -1268,7 +1268,7 @@ void PowerManager::addToJsonInfo(JsonObject &root) {
     }
 
     String uiDomString;
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       if (_relay[i].pin<0 || !_relay[i].external) continue;
       uiDomString = F("Relay "); uiDomString += i;
       if (_relay[i].name[0]) { uiDomString += F(" ("); uiDomString += _relay[i].name; uiDomString += ')'; }
@@ -1289,12 +1289,12 @@ void PowerManager::addToJsonInfo(JsonObject &root) {
       infoArr.add(uiDomString);
     }
 
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
       if (_relay[i].pin<0 || !isCoupled(i)) continue;
       uiDomString = F("Relay "); uiDomString += i;
       if (_relay[i].name[0]) { uiDomString += F(" ("); uiDomString += _relay[i].name; uiDomString += ')'; }
       infoArr = user.createNestedArray(uiDomString);
-      if (_relay[i].segment == POWER_MANAGER_SEG_ANY) uiDomString = F("follows any segment");
+      if (_relay[i].segment == POWERMANAGER_SEG_ANY) uiDomString = F("follows any segment");
       else {
         uiDomString = F("follows ");
         uint8_t sid = _relay[i].segment;
@@ -1321,9 +1321,9 @@ void PowerManager::addToJsonState(JsonObject &root) {
   if (multiRelay.isNull()) {
     multiRelay = root.createNestedObject(FPSTR(_name));
   }
-  #if POWER_MANAGER_MAX_RELAYS > 1
+  #if POWERMANAGER_MAX_RELAYS > 1
   JsonArray rel_arr = multiRelay.createNestedArray(F("relays"));
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     if (_relay[i].pin < 0) continue;
     JsonObject relay = rel_arr.createNestedObject();
     relay[FPSTR(_relay_str)] = i;
@@ -1349,7 +1349,7 @@ void PowerManager::readFromJsonState(JsonObject &root) {
   if (!usermod.isNull()) {
     if (usermod[FPSTR(_relay_str)].is<int>() && usermod[FPSTR(_relay_str)].as<int>()>=0) {
       uint8_t rly = usermod[FPSTR(_relay_str)].as<int>();
-      if (rly < POWER_MANAGER_MAX_RELAYS) {
+      if (rly < POWERMANAGER_MAX_RELAYS) {
         if (usermod["seg"].is<int>()) setSegmentLink(rly, usermod["seg"].as<int>(), usermod["save"] | true);
         if (usermod["on"].is<bool>()) {
           if (!isCoupled(rly)) switchRelay(rly, usermod["on"].as<bool>());
@@ -1363,7 +1363,7 @@ void PowerManager::readFromJsonState(JsonObject &root) {
     for (JsonVariant r : relays) {
       if (r[FPSTR(_relay_str)].is<int>() && r[FPSTR(_relay_str)].as<int>()>=0) {
         uint8_t rly = r[FPSTR(_relay_str)].as<int>();
-        if (rly >= POWER_MANAGER_MAX_RELAYS) continue;
+        if (rly >= POWERMANAGER_MAX_RELAYS) continue;
         if (r["seg"].is<int>()) setSegmentLink(rly, r["seg"].as<int>(), r["save"] | true);
         if (r["on"].is<bool>()) {
           if (!isCoupled(rly)) switchRelay(rly, r["on"].as<bool>());
@@ -1392,7 +1392,7 @@ void PowerManager::addToConfig(JsonObject &root) {
   top[FPSTR(_blackPost)] = boPostMs;
   top[FPSTR(_stabilize_str)] = stabilizeSec;
   top[FPSTR(_minOff)] = minOffMs;
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     String parName = FPSTR(_relay_str); parName += '-'; parName += i;
     JsonObject relay = top.createNestedObject(parName);
     if (i == 0) { // relay 0 = Master AC relay slot
@@ -1495,7 +1495,7 @@ void PowerManager::appendConfigData() {
  * The function should return true if configuration was successfully loaded or false if there was no configuration.
  */
 bool PowerManager::readFromConfig(JsonObject &root) {
-  int8_t oldPin[POWER_MANAGER_MAX_RELAYS];
+  int8_t oldPin[POWERMANAGER_MAX_RELAYS];
 
   JsonObject top = root[FPSTR(_name)];
   if (top.isNull()) {
@@ -1544,7 +1544,7 @@ bool PowerManager::readFromConfig(JsonObject &root) {
   minOffMs = top[FPSTR(_minOff)] | minOffMs;
   minOffMs = min(10000,max(0,(int)minOffMs));
 
-  for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++) {
+  for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++) {
     String parName = FPSTR(_relay_str); parName += '-'; parName += i;
     oldPin[i]          = _relay[i].pin;
     _relay[i].pin      = top[parName]["pin"] | _relay[i].pin;
@@ -1563,14 +1563,14 @@ bool PowerManager::readFromConfig(JsonObject &root) {
       masterMainSync = top[parName][FPSTR(_mainSync)] | masterMainSync;
     }
     int seg = top[parName][FPSTR(_segment_str)] | (int)_relay[i].segment;
-    if (seg < -1 || (seg >= (int)strip.getMaxSegments() && seg != POWER_MANAGER_SEG_ANY)) seg = -1;
-    if (i > 0 && seg == POWER_MANAGER_SEG_ANY) seg = -1; // only the Master AC relay (relay 0) may follow all segments
+    if (seg < -1 || (seg >= (int)strip.getMaxSegments() && seg != POWERMANAGER_SEG_ANY)) seg = -1;
+    if (i > 0 && seg == POWERMANAGER_SEG_ANY) seg = -1; // only the Master AC relay (relay 0) may follow all segments
     _relay[i].segment  = seg;
-    if (top[parName]["name"].is<const char*>()) strlcpy(_relay[i].name, top[parName]["name"].as<const char*>(), POWER_MANAGER_NAME_LEN);
+    if (top[parName]["name"].is<const char*>()) strlcpy(_relay[i].name, top[parName]["name"].as<const char*>(), POWERMANAGER_NAME_LEN);
   }
   // relay 0 is the dedicated Master AC relay slot
-  if (masterEnabled) _relay[0].segment = POWER_MANAGER_SEG_ANY;
-  else if (_relay[0].segment == POWER_MANAGER_SEG_ANY) _relay[0].segment = -1;
+  if (masterEnabled) _relay[0].segment = POWERMANAGER_SEG_ANY;
+  else if (_relay[0].segment == POWERMANAGER_SEG_ANY) _relay[0].segment = -1;
 
   DEBUG_PRINT(FPSTR(_name));
   if (!initDone) {
@@ -1578,7 +1578,7 @@ bool PowerManager::readFromConfig(JsonObject &root) {
     DEBUG_PRINTLN(F(" config loaded."));
   } else {
     // deallocate all pins 1st
-    for (int i=0; i<POWER_MANAGER_MAX_RELAYS; i++)
+    for (int i=0; i<POWERMANAGER_MAX_RELAYS; i++)
       if (oldPin[i]>=0 && oldPin[i]<100) {
         PinManager::deallocatePin(oldPin[i], PinOwner::UM_MultiRelay);
       }
@@ -1621,5 +1621,5 @@ const char PowerManager::_mainSync[]        PROGMEM = "main-sync";
 const char PowerManager::_takeOver[]        PROGMEM = "take-over-relays";
 
 
-static PowerManager power_manager;
-REGISTER_USERMOD(power_manager);
+static PowerManager powerManager;
+REGISTER_USERMOD(powerManager);

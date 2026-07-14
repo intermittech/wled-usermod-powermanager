@@ -1,6 +1,6 @@
 # PowerManager segment-coupling — core UI patch for `wled00/data/index.js`
 
-The segment-coupling feature (power_manager usermod, milestone 2) is almost entirely usermod-only.
+The segment-coupling feature (PowerManager usermod) is almost entirely usermod-only.
 The **one** core file it touches is `wled00/data/index.js` (the main web UI), which adds a
 "Power relays" checkbox row to each segment card. This file is overwritten whenever a new WLED
 nightly source tree is unpacked — **re-apply the four edits below after every nightly refresh.**
@@ -119,5 +119,5 @@ function setSegRly(s, r)
   The usermod persists changes via `configNeedsWrite`.
 * Relays in "any segment" master mode (`seg == 99`) are deliberately hidden from the cards so the
   master-PSU relay can't be accidentally re-linked; manage it from Usermod settings.
-* Known cosmetic edge: a `POWER_MANAGER_MAX_RELAYS=1` build reports relay 0 in the state object even
+* Known cosmetic edge: a `POWERMANAGER_MAX_RELAYS=1` build reports relay 0 in the state object even
   when no pin is assigned (pre-existing usermod API shape), which would show one checkbox.

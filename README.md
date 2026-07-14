@@ -22,15 +22,26 @@ custom_usermods = https://github.com/intermittech/wled-usermod-powermanager.git
 for complete environments including all compile-time options.)
 
 **Or as a local copy:** copy this repository into your WLED tree as
-`usermods/power_manager/` and use `custom_usermods = power_manager`.
+`usermods/PowerManager/` and use `custom_usermods = PowerManager`.
 
 ### Optional web UI integration (segment cards)
 
-The "Power relays" menu on the segment cards - link relays right where you control the
-segment - requires a small patch to one WLED core file (`wled00/data/index.js`) applied
-**before building**. It is optional: without it, everything works and links are configured
-on the Usermods settings page instead. See [`ui-patch/`](ui-patch/) for the automatic
-patcher and documentation. Builds without this usermod are completely unaffected by the patch.
+<img src="images/segments-screenshot.png" align="right" width="230" alt="The Power relays menu on a segment card">
+
+The "Power relays" menu on the segment cards (shown on the right): link power relays right
+where you control the segment, with the current assignment of every relay at a glance -
+green for this segment, dimmed for relays serving another one.
+
+This part requires a small patch to one WLED core file (`wled00/data/index.js`), applied
+**before building the firmware**. It cannot live inside the usermod because that file is
+compiled into WLED's web UI at build time. It is entirely optional: without it everything
+works and links are configured on the Usermods settings page instead.
+
+See [`ui-patch/`](ui-patch/) for the automatic patcher (anchor-based, idempotent, with
+backup) and the manual patch documentation. Firmware built from a patched tree **without**
+this usermod behaves exactly like stock WLED.
+
+<br clear="right"/>
 
 ---
 
@@ -75,9 +86,9 @@ A relay can be coupled to a WLED segment so it follows that segment's on/off sta
 * `-1` - not coupled (default; relay behaves as before)
 * `0`-`31` - relay follows that segment: on when the segment is on (and global power is on), off otherwise
 
-**Master AC relay:** relay 0 doubles as a dedicated master slot, meant for the AC-side trigger of the main power supply (the other relays typically switch DC MOSFET outputs). Enable it with the *Enabled* checkbox in its section on the settings page (or `-D POWER_MANAGER_MASTER=true` for pre-built images) and pick its pin; while enabled it is on whenever *any* segment is on, and internally uses the reserved segment value 99 (only relay 0 may hold it). A master relay never switches off while any section relay is still on - the PSU is always the last to cut, and its `delay-off-s` counts from the moment the last section switched off. It defaults to a 5 second off-delay (PSU anti-cycling: quick re-ons never drop the supply); set your own value to override.
+**Master AC relay:** relay 0 doubles as a dedicated master slot, meant for the AC-side trigger of the main power supply (the other relays typically switch DC MOSFET outputs). Enable it with the *Enabled* checkbox in its section on the settings page (or `-D POWERMANAGER_MASTER=true` for pre-built images) and pick its pin; while enabled it is on whenever *any* segment is on, and internally uses the reserved segment value 99 (only relay 0 may hold it). A master relay never switches off while any section relay is still on - the PSU is always the last to cut, and its `delay-off-s` counts from the moment the last section switched off. It defaults to a 5 second off-delay (PSU anti-cycling: quick re-ons never drop the supply); set your own value to override.
 
-The optional *Sync main power* setting (`main-sync`, `-D POWER_MANAGER_MASTER_MAIN_SYNC=true`) mirrors the master on WLED's main power state: when the master cuts because every segment was switched off, main power is switched off as well (UI, MQTT and Home Assistant all show off) - and switching any segment back on restores main power and powers everything up through the normal sequence. Turning main power off yourself behaves as usual: segments stay dark until you turn it back on.
+The optional *Sync main power* setting (`main-sync`, `-D POWERMANAGER_MASTER_MAIN_SYNC=true`) mirrors the master on WLED's main power state: when the master cuts because every segment was switched off, main power is switched off as well (UI, MQTT and Home Assistant all show off) - and switching any segment back on restores main power and powers everything up through the normal sequence. Turning main power off yourself behaves as usual: segments stay dark until you turn it back on.
 
 The global `stabilize-s` setting adds a PSU stabilization window to the master relay: after it powers on, the strip is held black and all segment-coupled relays postpone energising their sections for that many seconds, giving the supply time to come up and stabilize before load is applied. Once the window clears, sections power up with the normal anti-flash sequence and fade in. When the master had to power up first, a section's `delay-on-s` starts counting only after the stabilization window has passed (2s stabilize + 2s delay-on = 4s total); if the master was already on, only `delay-on-s` applies.
 
@@ -94,7 +105,6 @@ Behavior:
 
 * Deleting a linked segment switches its relay(s) off and removes the link automatically, so a segment created later (which reuses the freed id) does not inherit stale relay links. Note this also applies when WLED itself rebuilds segments (e.g. after changing LED outputs, or segment resets on critically low memory) - re-link afterwards.
 * Segments are referenced by their index. In the rare cases where WLED compacts the segment list (batch deletion of most segments, low-memory purge), remaining segment ids shift and links should be checked.
-* Only cut power to a section that has its own data line (its own LED output), or that sits at the *end* of a chain. Cutting power mid-chain breaks data pass-through to the sections behind it, and unpowered LEDs can draw parasitic power through the data line.
 
 Coupling can be set via the Usermods settings page, or via JSON: `{"PowerManager":{"relay":1,"seg":2}}` (`"seg":-1` decouples; the master role is settings-only and cannot be assigned via the API). Changes are persisted automatically unless `"save":false` is added, which applies the link in RAM only.
 
@@ -115,7 +125,7 @@ With the accompanying web-UI patch, each segment shows a collapsible "Power rela
 
 ## Relay names
 
-Each relay can be given a name (up to 32 characters, e.g. the physical output port it powers: "LED Out 3", "Kitchen cabinet"). Names are shown in the segment "Power relays" menu, on the Info page, and are used as the Home Assistant entity name for external relays. Set names on the Usermods settings page, or at compile time via `POWER_MANAGER_NAMES` (see below).
+Each relay can be given a name (up to 32 characters, e.g. the physical output port it powers: "LED Out 3", "Kitchen cabinet"). Names are shown in the segment "Power relays" menu, on the Info page, and are used as the Home Assistant entity name for external relays. Set names on the Usermods settings page, or at compile time via `POWERMANAGER_NAMES` (see below).
 
 ## HTTP API
 All responses are returned in JSON format. 
@@ -153,15 +163,15 @@ When a relay is switched, a message is published:
 
 ## Usermod installation
 
-Add `power_manager` to the `custom_usermods` of your platformio.ini environment.
+Add `PowerManager` to the `custom_usermods` of your platformio.ini environment.
 
-You can override the default maximum number of relays (which is 4) by defining POWER_MANAGER_MAX_RELAYS (up to 16).
+You can override the default maximum number of relays (which is 4) by defining POWERMANAGER_MAX_RELAYS (up to 16).
 
 Some settings can be defined (defaults) at compile time by setting the following defines:
 
 ```cpp
 // enable or disable HA discovery for externally controlled relays
-#define POWER_MANAGER_HA_DISCOVERY true
+#define POWERMANAGER_HA_DISCOVERY true
 
 // select an I2C port expander (define at most one of these)
 #define USERMOD_USE_PCF8574
@@ -175,50 +185,50 @@ Some settings can be defined (defaults) at compile time by setting the following
 #define AW9523_P0_PUSHPULL true
 
 // anti-flash blackout around segment power-on (ms)
-#define POWER_MANAGER_BLACK_PRE_MS 200
-#define POWER_MANAGER_BLACK_POST_MS 200
+#define POWERMANAGER_BLACK_PRE_MS 200
+#define POWERMANAGER_BLACK_POST_MS 200
 
 // PSU stabilization seconds, applied to any-segment (99) master relays
-#define POWER_MANAGER_STABILIZE 0
+#define POWERMANAGER_STABILIZE 0
 
 // minimum port off-time in ms before re-energising (LED capacitor discharge)
-#define POWER_MANAGER_MIN_OFF_MS 2000
+#define POWERMANAGER_MIN_OFF_MS 2000
 ```
 
-The following definitions should be a list of values (maximum number of entries is POWER_MANAGER_MAX_RELAYS) that will be applied to the relays in order:
-(e.g. assuming POWER_MANAGER_MAX_RELAYS=2)
+The following definitions should be a list of values (maximum number of entries is POWERMANAGER_MAX_RELAYS) that will be applied to the relays in order:
+(e.g. assuming POWERMANAGER_MAX_RELAYS=2)
 
 ```cpp
-#define POWER_MANAGER_PINS 12,18
-#define POWER_MANAGER_DELAYS 0,0      // seeds both delay-on-s and delay-off-s
-#define POWER_MANAGER_EXTERNALS false,true
-#define POWER_MANAGER_INVERTS false,false
-#define POWER_MANAGER_SEGMENTS 0,-1   // couple relay 0 to segment 0 (-1 = not coupled)
-#define POWER_MANAGER_MASTER true     // relay 0 = dedicated Master AC relay (PSU trigger)
-#define POWER_MANAGER_MASTER_MAIN_SYNC true  // main power mirrors the Master AC relay
-#define POWER_MANAGER_TAKEOVER true   // unconfigured relays stay off instead of following main power
-#define POWER_MANAGER_NAMES "Port 1","Port 2"   // relay names (quoted strings)
+#define POWERMANAGER_PINS 12,18
+#define POWERMANAGER_DELAYS 0,0      // seeds both delay-on-s and delay-off-s
+#define POWERMANAGER_EXTERNALS false,true
+#define POWERMANAGER_INVERTS false,false
+#define POWERMANAGER_SEGMENTS 0,-1   // couple relay 0 to segment 0 (-1 = not coupled)
+#define POWERMANAGER_MASTER true     // relay 0 = dedicated Master AC relay (PSU trigger)
+#define POWERMANAGER_MASTER_MAIN_SYNC true  // main power mirrors the Master AC relay
+#define POWERMANAGER_TAKEOVER true   // unconfigured relays stay off instead of following main power
+#define POWERMANAGER_NAMES "Port 1","Port 2"   // relay names (quoted strings)
 ```
 
 In `platformio_override.ini` the name strings need escaped quotes:
 
 ```ini
-  -D POWER_MANAGER_NAMES='"Port 1","Port 2"'
+  -D POWERMANAGER_NAMES='"Port 1","Port 2"'
 ```
 These can be set via your `platformio_override.ini` file or as `#define` in your `my_config.h` (remember to set `WLED_USE_MY_CONFIG` in your `platformio_override.ini`)
 
-Expander virtual pins (100+) can be used in `POWER_MANAGER_PINS`, allowing fully pre-configured firmware images. Example `platformio_override.ini` environment for a board with 8 relays on an AW9523:
+Expander virtual pins (100+) can be used in `POWERMANAGER_PINS`, allowing fully pre-configured firmware images. Example `platformio_override.ini` environment for a board with 8 relays on an AW9523:
 
 ```ini
 [env:esp32dev_powermanager_aw9523]
 extends = env:esp32dev
-custom_usermods = power_manager
+custom_usermods = PowerManager
 build_flags = ${env:esp32dev.build_flags}
   -D USERMOD_USE_AW9523
   -D AW9523_ADDRESS=0x58
-  -D POWER_MANAGER_MAX_RELAYS=8
-  -D POWER_MANAGER_PINS=100,101,102,103,104,105,106,107  ;; P0_0..P0_7
-  -D POWER_MANAGER_EXTERNALS=true,true,true,true,true,true,true,true
+  -D POWERMANAGER_MAX_RELAYS=8
+  -D POWERMANAGER_PINS=100,101,102,103,104,105,106,107  ;; P0_0..P0_7
+  -D POWERMANAGER_EXTERNALS=true,true,true,true,true,true,true,true
 ```
 
 ## Configuration
@@ -233,9 +243,9 @@ Usermod can be configured via the Usermods settings page.
 * `HA-discovery`- enable Home Assistant auto discovery
 * `take-over-relays` - off by default (stock behavior): when enabled, unconfigured relays (pin set, but no segment link and not externally controlled) stay off until they are given a role, instead of following main power - avoids surprises once part of the relays is segment-coupled
 * `black-pre-ms` / `black-post-ms` - anti-flash: black frames sent to a coupled segment before/after its power port switches on (both 0 = disabled); see *Segment coupling*
-* `stabilize-s` - PSU stabilization time in seconds: the other relays wait this long after the Master AC relay powers on (max 60); each relay's own `delay-on-s` is added on top, allowing a staggered power-on; see *Segment coupling*
+* `stabilize-s` - PSU stabilization time in seconds: the other relays wait this long after the Master AC relay powers on (default 1, max 60); each relay's own `delay-on-s` is added on top, allowing a staggered power-on; see *Segment coupling*
 * `min-off-ms` - minimum time a port stays off before it may be re-energised (LED capacitor discharge, prevents white flash on rapid toggling; max 10000); see *Segment coupling*
-* `pin` - ESP GPIO pin the relay is connected to, or expander virtual pin 100+ (can be configured at compile time `-D POWER_MANAGER_PINS=xx,xx,...`)
+* `pin` - ESP GPIO pin the relay is connected to, or expander virtual pin 100+ (can be configured at compile time `-D POWERMANAGER_PINS=xx,xx,...`)
 * `delay-on-s` / `delay-off-s` - delay in seconds before the relay switches on / off (individually per relay; a legacy `delay-s` value migrates to both)
 * `active-high` - shown as *Active Low* on the settings page: when ticked, relay On drives the output low (for active-low relay boards); unticked (default) On drives it high. The config key stores the invert flag and keeps its historical name for compatibility.
 * `external` - shown as *External control*: if enabled, WLED does not control the relay, it can only be triggered by an external command (MQTT, HTTP, JSON or button); not available for segment-coupled relays (the checkbox is disabled once a segment is set)
@@ -263,11 +273,11 @@ Have fun - @blazoncek
 2023-11
 * @chrisburrows Added support for compile time defaults for setting DELAY, EXTERNAL, INVERTS and HA discovery
 
-2026-07
+2026-07 - Changed to PowerManager
 * Added support for the AW9523(B) 16-port I2C expander (expander type selector replaces the PCF8574 checkbox; legacy configs migrate automatically)
 * Maximum number of relays raised from 8 to 16
 * Added segment coupling: a relay can follow a segment's on/off state (incl. "any segment" master mode) to cut power to individual LED sections
-* Added relay names (settings page or `POWER_MANAGER_NAMES`), used in the segment "Power relays" menu, Info page and HA discovery
+* Added relay names (settings page or `POWERMANAGER_NAMES`), used in the segment "Power relays" menu, Info page and HA discovery
 * Split `delay-s` into per-relay `delay-on-s` and `delay-off-s` (legacy configs migrate to both)
 * Added anti-flash power-on: black frames around energising a coupled port (`black-pre-ms`/`black-post-ms`)
 * Added `stabilize-s` PSU stabilization for any-segment master relays: sections wait after the main supply powers on
