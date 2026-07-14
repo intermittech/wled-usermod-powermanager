@@ -1,4 +1,4 @@
-# WLED-PowerManager
+# Power Manager (WLED usermod)
 
 Advanced power switching usermod for [WLED](https://github.com/wled/WLED): named relay/MOSFET
 outputs (direct GPIO or PCF8574 / AW9523(B) I2C expanders) coupled to segments, so turning a
@@ -15,7 +15,7 @@ Requires a recent WLED base (v0.16 / 17.0-dev nightlies) with the external-userm
 ```ini
 [env:my_build]
 extends = env:esp32dev
-custom_usermods = https://github.com/intermittech/WLED-PowerManager.git
+custom_usermods = https://github.com/intermittech/wled-usermod-powermanager.git
 ```
 
 (Pin a release with `#v1.0.0` at the end of the URL. See `examples/platformio_override.ini`
