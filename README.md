@@ -9,7 +9,7 @@ This usermod is heavily based on the multi_relay usermod made by blazoncek (see 
 
 Requires a recent WLED base (v0.16 / 17.0-dev nightlies) with the external-usermod build system.
 
-Specifically designed with the [QuinLED Dig-Next-2](https://dig-next.info/dig-next-2.html) WLED controller, enabling the individual power output control its hardware features.
+Specifically designed with the [QuinLED Dig-Next-2](https://dig-next.info/dig-next-2.html) WLED controller, enabling the per port individual power output control hardware feature.
 
 ## Installation
 
