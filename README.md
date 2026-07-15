@@ -57,7 +57,7 @@ API key, and **automatically migrates settings** saved by a previous `multi_rela
 on first boot. The MQTT topics (`.../relay/N`) and the HTTP `/relays` API are kept unchanged so
 existing automations and Home Assistant entities keep working.
 
-## I2C port expanders
+## I2C port expander support
 
 Select the expander type in the usermod settings (or at compile time). Relays are attached to expander ports using virtual pin numbers starting at 100:
 
@@ -70,12 +70,7 @@ Expander use requires global I2C pins to be defined in LED & Hardware settings. 
 the expander type, save and re-open the Usermods settings page so the pin dropdowns show the
 matching port names.
 
-### AW9523 notes
-
-* The chip is verified via its ID register at boot; the Info page shows whether it was found.
-* Only the ports assigned to relays are (re)configured (GPIO mode, output direction, interrupts masked) - other ports of the chip are left untouched, so they remain available for other purposes.
-* The P0_x port is open-drain by default in hardware. The usermod configures it as push-pull by default (recommended when driving relay/optocoupler inputs directly). Untick `AW9523-pushpull` (or set `-D AW9523_P0_PUSHPULL=false`) if your board relies on open-drain outputs with external pull-ups. P1_x is always push-pull.
-* The RSTN pin of the AW9523 has an internal 100k pull-*down* - it must be tied high (to VCC) on the board or the chip stays in reset.
+AW9523 specifics (boot-time detection, per-port configuration, push-pull vs open-drain, RSTN wiring): **[I2C Port Expander Support](https://github.com/intermittech/wled-usermod-powermanager/wiki/I2C-Port-Expander-Support)** (wiki)
 
 ## Features & behavior
 
