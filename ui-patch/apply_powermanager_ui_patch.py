@@ -35,24 +35,33 @@ from pathlib import Path
 JS_LOADER = (
     "\n"
     "// load usermod UI inject code (served by the device when usermods provide any);\n"
-    "// umInject(state) is then called after every state render, see readState()\n"
-    "function loadUmInject() {\n"
+    "// umInjectSafe(state) is then called after every state render, see readState()\n"
+    "function loadUmInject(s) {\n"
     "\tif (gId(\"um\")) return; // already loaded\n"
     "\tlet scE = d.createElement(\"script\");\n"
     "\tscE.id = \"um\";\n"
     "\tscE.src = getURL(\"/um.js\");\n"
     "\tscE.async = false;\n"
-    "\tscE.onload = () => {\n"
-    "\t\tif (typeof umInject == \"function\") requestJson(); // render once with state available\n"
-    "\t};\n"
+    "\tscE.onload = () => umInjectSafe(s); // render once with the state captured at load time\n"
     "\tscE.onerror = (ev) => {\n"
     "\t\tconsole.log(\"Usermod inject script not present or failed to load\", ev);\n"
     "\t};\n"
     "\td.body.appendChild(scE);\n"
     "}\n"
+    "\n"
+    "// run usermod UI inject code, shielding the UI from exceptions in usermod-provided JS\n"
+    "// (an uncaught throw here would abort readState() and trigger requestJson()'s retry loop)\n"
+    "function umInjectSafe(s) {\n"
+    "\tif (typeof umInject != \"function\") return;\n"
+    "\ttry {\n"
+    "\t\tumInject(s);\n"
+    "\t} catch (e) {\n"
+    "\t\tconsole.error(\"Usermod UI inject error:\", e);\n"
+    "\t}\n"
+    "}\n"
 )
-JS_RENDER_HOOK = "\tif (typeof umInject == \"function\") umInject(s); // usermod UI injections (see loadUmInject())\n"
-JS_LOAD_HOOK   = "\t\t\tif (json?.info?.u) loadUmInject(); // usermods present: load their UI inject code\n"
+JS_RENDER_HOOK = "\tumInjectSafe(s); // usermod UI injections (see loadUmInject())\n"
+JS_LOAD_HOOK   = "\t\t\tif (json.info && json.info.u) loadUmInject(s); // usermods present: load their UI inject code\n"
 
 H_DEFINE = (
     "// usermods can inject JS into the main web UI via addUIInjectCode() (served at /um.js);\n"
@@ -86,10 +95,10 @@ FILES = {
         ("loadUmInject fn", "function loadUmInject",
          r"^function getURL\(path\) \{\n\treturn \(loc \? locproto \+ \"//\" \+ locip : \"\"\) \+ path;\n\}\n",
          JS_LOADER),
-        ("render hook", "umInject(s);",
+        ("render hook", "umInjectSafe(s); // usermod UI injections",
          r"^\tupdateUI\(\);\n(?=\treturn true;\n\})",
          JS_RENDER_HOOK),
-        ("load hook", "loadUmInject();",
+        ("load hook", "loadUmInject(s);",
          r"^\t\t\treadState\(s\);\n(?=\n\t\t\treqsLegal = true;)",
          JS_LOAD_HOOK),
     ],
@@ -185,6 +194,8 @@ def main():
         print("\nNOT everything was patched: %d edit(s) did not match this WLED version." % len(failed))
         print("Apply those by hand using PowerManager-UI.patch.md - or, if your WLED base already")
         print("includes the upstream usermod UI injection mechanism, no patch is needed at all.")
+        print("(A tree patched by an OLDER version of this script can also cause this - restore the")
+        print(".mrbak backups or start from a fresh WLED tree, then run the patcher again.)")
         sys.exit(1)
     if applied_total == 0:
         print("\nNothing to do - the hook is already fully applied.")

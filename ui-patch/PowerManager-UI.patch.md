@@ -17,7 +17,7 @@ Four files are touched. Insertions only — no existing line is modified or remo
 
 ## 1. `wled00/data/index.js` (3 edits)
 
-### 1a. The loader — insert directly **after** the `getURL()` function:
+### 1a. The loader and the exception shield — insert directly **after** the `getURL()` function:
 
 ```js
 function getURL(path) {
@@ -30,20 +30,29 @@ insert:
 ```js
 
 // load usermod UI inject code (served by the device when usermods provide any);
-// umInject(state) is then called after every state render, see readState()
-function loadUmInject() {
+// umInjectSafe(state) is then called after every state render, see readState()
+function loadUmInject(s) {
 	if (gId("um")) return; // already loaded
 	let scE = d.createElement("script");
 	scE.id = "um";
 	scE.src = getURL("/um.js");
 	scE.async = false;
-	scE.onload = () => {
-		if (typeof umInject == "function") requestJson(); // render once with state available
-	};
+	scE.onload = () => umInjectSafe(s); // render once with the state captured at load time
 	scE.onerror = (ev) => {
 		console.log("Usermod inject script not present or failed to load", ev);
 	};
 	d.body.appendChild(scE);
+}
+
+// run usermod UI inject code, shielding the UI from exceptions in usermod-provided JS
+// (an uncaught throw here would abort readState() and trigger requestJson()'s retry loop)
+function umInjectSafe(s) {
+	if (typeof umInject != "function") return;
+	try {
+		umInject(s);
+	} catch (e) {
+		console.error("Usermod UI inject error:", e);
+	}
 }
 ```
 
@@ -51,7 +60,7 @@ function loadUmInject() {
 
 ```js
 	updateUI();
-	if (typeof umInject == "function") umInject(s); // usermod UI injections (see loadUmInject())
+	umInjectSafe(s); // usermod UI injections (see loadUmInject())
 	return true;
 }
 ```
@@ -61,7 +70,7 @@ function loadUmInject() {
 ```js
 			var s = json.state ? json.state : json;
 			readState(s);
-			if (json?.info?.u) loadUmInject(); // usermods present: load their UI inject code
+			if (json.info && json.info.u) loadUmInject(s); // usermods present: load their UI inject code
 
 			reqsLegal = true;
 ```
@@ -138,6 +147,9 @@ In `initServer()`, after the `/freeheap` handler block:
   the end of every `readState()` — so injected elements survive full UI re-renders
   (`populateSegments()` rebuilds the segment cards on every state update), for both fetch
   and WebSocket updates.
+- **Exception shielding:** all calls go through `umInjectSafe()`, which wraps `umInject()`
+  in try/catch — a throwing usermod script would otherwise abort `readState()` and set off
+  `requestJson()`'s 10-retry loop, flooding the device with requests.
 - **Zero cost when unused:** usermods that don't override the virtual contribute nothing;
   without any usermod the endpoint serves an empty function, and `info.u` gating means
   stock builds never even request it.
