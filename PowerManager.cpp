@@ -723,6 +723,11 @@ void PowerManager::setSegmentLink(uint8_t relay, int seg, bool persist) {
   _relay[relay].boPhase = BO_NONE;
   _pendingSince[relay] = 0;
   if (seg >= 0) _relay[relay].external = false; // coupled relays are exclusively segment-driven
+  // "Take over all relays": an unlinked relay has no role anymore and must not stay powered.
+  // Without it the relay keeps its state until the next main power toggle (default behavior:
+  // relays without a role are not touched); handleSegmentCoupling() skips uncoupled relays,
+  // so this is the only place a menu/API unlink can switch the relay off.
+  else if (takeOverRelays && _relay[relay].state) switchRelay(relay, false);
   if (persist) configNeedsWrite = true; // persist to cfg.json (written from main loop)
 }
 
