@@ -3,8 +3,9 @@
 Since PowerManager v1.1.0, the "Power relays" segment-card menu is generated **by the
 usermod itself**: the device serves it as JavaScript at `/um.js` and the main web UI
 injects it after every state render. The WLED source tree only needs this small,
-usermod-agnostic hook (designed by @blazoncek and proposed for WLED mainline — once your
-WLED base includes it, no patching is needed at all).
+usermod-agnostic hook (designed by @blazoncek and proposed for WLED mainline in
+[wled/WLED#5741](https://github.com/wled/WLED/pull/5741) — once your WLED base includes
+it, no patching is needed at all).
 
 `apply_powermanager_ui_patch.py` applies everything below automatically. Use this
 document when the script reports a failed anchor (i.e. a WLED update moved the

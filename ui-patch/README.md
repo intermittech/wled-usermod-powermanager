@@ -6,7 +6,8 @@ can be linked to segments right where the segments are controlled.
 Since v1.1.0 the menu itself ships **inside the usermod**: the device serves it at
 `/um.js` and the web UI injects it after every render. What must be patched into the WLED
 source tree is only a small, usermod-agnostic *injection hook* (4 core files, insertions
-only — designed by @blazoncek and proposed for WLED mainline; once your WLED base
+only — designed by @blazoncek and proposed for WLED mainline in
+[wled/WLED#5741](https://github.com/wled/WLED/pull/5741); once your WLED base
 includes it, skip this folder entirely).
 
 **Apply before building your firmware:**
