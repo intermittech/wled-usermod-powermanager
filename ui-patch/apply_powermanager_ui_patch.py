@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 """
-Apply the PowerManager "Power relays" segment-card patch to WLED's wled00/data/index.js.
+Apply the usermod web-UI injection hook to a WLED source tree.
 
-The four edits are documented in PowerManager-UI.patch.md. This script
-locates them by structural anchors (function names / template landmarks), not line
-numbers, so it survives unrelated changes to the file. It is idempotent: already
-applied edits are detected and skipped. The file is only written when every edit is
-either applied or already present; a .mrbak backup is created next to it first.
+Since PowerManager v1.1.0 the segment-card "Power relays" menu ships INSIDE the usermod
+(served by the device at /um.js). What the WLED tree needs is only this small, usermod-
+agnostic hook (design by @blazoncek, proposed to WLED upstream - once it is merged and
+you build against a WLED version that includes it, this patch is unnecessary):
+
+  wled00/data/index.js      load /um.js and call umInject(state) after every state render
+  wled00/fcn_declare.h      Usermod::addUIInjectCode() virtual + UsermodManager declaration
+  wled00/um_manager.cpp     UsermodManager::addUIInjectCode() fan-out
+  wled00/wled_server.cpp    the /um.js endpoint
+
+The script locates each edit by structural anchors (not line numbers), is idempotent,
+creates one-time .mrbak backups, and only writes a file when every edit in it succeeded.
 
 Usage:
-    python apply_powermanager_ui_patch.py [path-to-wled-tree-or-index.js] [--dry-run]
+    python apply_powermanager_ui_patch.py [path-to-wled-tree] [--dry-run]
 
 Without a path, WLED trees are auto-discovered in the current and script directory.
 After patching, rebuild the firmware - html_ui.h is regenerated from index.js and the
-terser minification step doubles as a syntax check of the inserted code.
+terser minification step doubles as a syntax check of the inserted JS.
 """
 
 import re
@@ -21,169 +28,107 @@ import sys
 import shutil
 from pathlib import Path
 
-# ----------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------
 # Payloads (kept byte-identical to PowerManager-UI.patch.md)
-# ----------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------
 
-# Edit 1: relay list extraction, inserted directly after the counter-reset line at the
-# top of populateSegments()
-P1 = (
+JS_LOADER = (
     "\n"
-    "\t// Power Manager usermod: relays that can be coupled to a segment (row is hidden when the usermod is absent)\n"
-    "\tlet mrRelays = [];\n"
-    "\tif (s.PowerManager) mrRelays = (Array.isArray(s.PowerManager.relays) ? s.PowerManager.relays : [s.PowerManager])\n"
-    "\t\t.filter(r => r.seg !== undefined && r.seg != 99); // 99 = \"any segment\" mode, managed in usermod settings\n"
-)
-
-# Edit 2: the collapsible "Power relays" menu, inserted inside the segment loop,
-# directly before the card template (the `cn += \`<div class="seg lstI...` line)
-P2 = (
-    "\t\tlet mrRow = \"\";\n"
-    "\t\tif (mrRelays.length) {\n"
-    "\t\t\t// keep the relay list open across re-renders (each link click re-renders the cards from state)\n"
-    "\t\t\tlet rlyOpen = gId(`seg${i}rlyl`) ? !gId(`seg${i}rlyl`).classList.contains('hide') : false;\n"
-    "\t\t\tlet lnk = mrRelays.filter(r=>r.seg==i).map(r=>r.name?r.name:\"Relay \"+r.relay).join(\", \");\n"
-    "\t\t\tmrRow = `<div class=\"check revchkl\" style=\"cursor:pointer;\" title=\"Link power relays: their output is cut when this segment is off\" `+\n"
-    "\t\t\t\t\t\t`onclick=\"gId('seg${i}rlyl').classList.toggle('hide');gId('seg${i}rlyc').classList.toggle('exp');\">`+\n"
-    "\t\t\t\t\t`Power relays: ${lnk?lnk:\"none\"}`+\n"
-    "\t\t\t\t\t`<i class=\"icons e-icon${rlyOpen?\" exp\":\"\"}\" id=\"seg${i}rlyc\" style=\"position:absolute;left:0;top:3px;transition:transform .3s;\">&#xe395;</i></div>`+\n"
-    "\t\t\t\t\t`<div id=\"seg${i}rlyl\" class=\"${rlyOpen?'':'hide'}\" style=\"margin-left:16px;\">`;\n"
-    "\t\t\tfor (const r of mrRelays) {\n"
-    "\t\t\t\t// hint where the relay is currently linked: this segment (accent) or another one (dimmed)\n"
-    "\t\t\t\tlet other = \"\";\n"
-    "\t\t\t\tif (r.seg == i) {\n"
-    "\t\t\t\t\tother = ` <span style=\"color:var(--c-g);font-size:smaller;\">(this segment)</span>`;\n"
-    "\t\t\t\t} else if (r.seg >= 0) {\n"
-    "\t\t\t\t\tlet os = (s.seg||[]).find(q => q.id == r.seg);\n"
-    "\t\t\t\t\tother = ` <span style=\"color:var(--c-d);font-size:smaller;\">(${os&&os.n ? os.n : \"Segment \"+r.seg})</span>`;\n"
-    "\t\t\t\t}\n"
-    "\t\t\t\tmrRow += `<label class=\"check revchkl\">${r.name?r.name:\"Relay \"+r.relay}${other}`+\n"
-    "\t\t\t\t\t\t\t`<input type=\"checkbox\" id=\"seg${i}rly${r.relay}\" onchange=\"setSegRly(${i},${r.relay})\" ${r.seg==i?\"checked\":\"\"}>`+\n"
-    "\t\t\t\t\t\t\t`<span class=\"checkmark\"></span></label>`;\n"
-    "\t\t\t}\n"
-    "\t\t\tmrRow += `</div>`;\n"
-    "\t\t}\n"
-)
-
-# Edit 3: single line referencing the menu inside the card template, inserted directly
-# above the `<div class="del">` template line (repeat/delete buttons)
-EDIT3_LINE = "\t\t\t\t\tmrRow +\n"
-
-# Edit 4: the click handler, inserted after setSegBri()
-P4 = (
-    "\n"
-    "// Power Manager usermod: (un)couple relay r to/from segment s (power cutoff follows segment on/off)\n"
-    "function setSegRly(s, r)\n"
-    "{\n"
-    "\tvar lnk = gId(`seg${s}rly${r}`).checked;\n"
-    "\tvar obj = {\"PowerManager\": {\"relay\": r, \"seg\": lnk ? s : -1}};\n"
-    "\trequestJson(obj);\n"
+    "// load usermod UI inject code (served by the device when usermods provide any);\n"
+    "// umInject(state) is then called after every state render, see readState()\n"
+    "function loadUmInject() {\n"
+    "\tif (gId(\"um\")) return; // already loaded\n"
+    "\tlet scE = d.createElement(\"script\");\n"
+    "\tscE.id = \"um\";\n"
+    "\tscE.src = getURL(\"/um.js\");\n"
+    "\tscE.async = false;\n"
+    "\tscE.onload = () => {\n"
+    "\t\tif (typeof umInject == \"function\") requestJson(); // render once with state available\n"
+    "\t};\n"
+    "\tscE.onerror = (ev) => {\n"
+    "\t\tconsole.log(\"Usermod inject script not present or failed to load\", ev);\n"
+    "\t};\n"
+    "\td.body.appendChild(scE);\n"
     "}\n"
 )
+JS_RENDER_HOOK = "\tif (typeof umInject == \"function\") umInject(s); // usermod UI injections (see loadUmInject())\n"
+JS_LOAD_HOOK   = "\t\t\tif (json?.info?.u) loadUmInject(); // usermods present: load their UI inject code\n"
 
-# ----------------------------------------------------------------------------------
+H_DEFINE = (
+    "// usermods can inject JS into the main web UI via addUIInjectCode() (served at /um.js);\n"
+    "// external usermods can test this macro to stay compatible with older WLED bases\n"
+    "#define WLED_ENABLE_UM_UI_INJECT\n"
+    "\n"
+)
+H_VIRTUAL = "    virtual void addUIInjectCode(Print &dest) {}                             // print JS code injecting UI elements into the main web UI (served at /um.js, run after every state render)\n"
+H_DECL    = "  void addUIInjectCode(Print &dest);\n"
 
+UM_IMPL = "void UsermodManager::addUIInjectCode(Print &dest) { for (auto mod = DYNARRAY_BEGIN(usermods); mod < DYNARRAY_END(usermods); ++mod) (*mod)->addUIInjectCode(dest); } // collect usermod UI inject JS (served at /um.js)\n"
 
-def func_span(text, name):
-    """Return (start, end) of the top-level function `name` (end = start of the next
-    top-level function, or end of file)."""
-    m = re.search(r"^function %s\b" % re.escape(name), text, re.M)
-    if not m:
-        return None
-    nxt = re.search(r"^function ", text[m.end():], re.M)
-    end = m.end() + nxt.start() if nxt else len(text)
-    return (m.start(), end)
+SERVER_ENDPOINT = (
+    "\n"
+    "  // usermod UI inject code: the main UI loads this script and calls umInject(state) after\n"
+    "  // every state render, letting usermods add their own elements without patching index.js\n"
+    "  server.on(F(\"/um.js\"), HTTP_GET, [](AsyncWebServerRequest *request) {\n"
+    "    AsyncResponseStream *response = request->beginResponseStream(FPSTR(CONTENT_TYPE_JAVASCRIPT));\n"
+    "    response->addHeader(FPSTR(s_cache_control), F(\"no-store\"));\n"
+    "    response->addHeader(F(\"Expires\"), F(\"0\"));\n"
+    "    response->print(F(\"function umInject(s){\"));\n"
+    "    UsermodManager::addUIInjectCode(*response);\n"
+    "    response->print(F(\"}\"));\n"
+    "    request->send(response);\n"
+    "  });\n"
+)
 
-
-def apply_patch(text):
-    """Return (new_text, results) where results maps edit name -> status string.
-    Statuses: 'applied', 'already present', 'FAILED (<reason>)'."""
-    results = {}
-
-    # --- Edit 1: relay list at the top of populateSegments() -----------------------
-    if "let mrRelays" in text:
-        results["1 relay list"] = "already present"
-    else:
-        m = re.search(
-            r"^[ \t]*segCount\s*=\s*0;\s*lowestUnused\s*=\s*0;\s*lSeg\s*=\s*0;[ \t]*\n",
-            text, re.M)
-        if m:
-            text = text[:m.end()] + P1 + text[m.end():]
-            results["1 relay list"] = "applied"
-        else:
-            results["1 relay list"] = "FAILED (counter-reset line in populateSegments() not found)"
-
-    # --- Edits 2 & 3 operate inside populateSegments() -----------------------------
-    span = func_span(text, "populateSegments")
-    if span is None:
-        for k in ("2 relay menu", "3 template line"):
-            results[k] = "FAILED (function populateSegments() not found)"
-    else:
-        start, end = span
-        body = text[start:end]
-
-        # Edit 2: menu builder before the card template
-        if "let mrRow" in body:
-            results["2 relay menu"] = "already present"
-        else:
-            m = re.search(r"^[ \t]*cn \+= `<div class=\"seg lstI", body, re.M)
-            if m:
-                body = body[:m.start()] + P2 + body[m.start():]
-                results["2 relay menu"] = "applied"
-            else:
-                results["2 relay menu"] = "FAILED (segment card template `cn += ...seg lstI` not found)"
-
-        # Edit 3: insert the mrRow reference above the del-buttons template line
-        if re.search(r"^[ \t]*mrRow \+$", body, re.M):
-            results["3 template line"] = "already present"
-        else:
-            m = re.search(r"^([ \t]*)`<div class=\"del\">`\+", body, re.M)
-            if m:
-                body = body[:m.start()] + m.group(1) + "mrRow +\n" + body[m.start():]
-                results["3 template line"] = "applied"
-            else:
-                results["3 template line"] = "FAILED (`<div class=\"del\">` template line not found)"
-
-        text = text[:start] + body + text[end:]
-
-    # --- Edit 4: setSegRly() after setSegBri() -------------------------------------
-    if "function setSegRly" in text:
-        results["4 click handler"] = "already present"
-    else:
-        span = func_span(text, "setSegBri")
-        if span is None:
-            results["4 click handler"] = "FAILED (function setSegBri() not found; appending at end works too - see patch doc)"
-        else:
-            close = text.find("\n}\n", span[0])
-            if close < 0 or close > span[1]:
-                results["4 click handler"] = "FAILED (could not find end of setSegBri())"
-            else:
-                ins = close + 3
-                text = text[:ins] + P4 + text[ins:]
-                results["4 click handler"] = "applied"
-
-    return text, results
+# Each edit: (name, marker meaning "already applied", anchor regex, payload inserted after the match)
+FILES = {
+    "wled00/data/index.js": [
+        ("loadUmInject fn", "function loadUmInject",
+         r"^function getURL\(path\) \{\n\treturn \(loc \? locproto \+ \"//\" \+ locip : \"\"\) \+ path;\n\}\n",
+         JS_LOADER),
+        ("render hook", "umInject(s);",
+         r"^\tupdateUI\(\);\n(?=\treturn true;\n\})",
+         JS_RENDER_HOOK),
+        ("load hook", "loadUmInject();",
+         r"^\t\t\treadState\(s\);\n(?=\n\t\t\treqsLegal = true;)",
+         JS_LOAD_HOOK),
+    ],
+    "wled00/fcn_declare.h": [
+        ("capability define", "WLED_ENABLE_UM_UI_INJECT",
+         r"^const unsigned int um_data_size = sizeof\(um_data_t\);.*\n\n",
+         H_DEFINE),
+        ("usermod virtual", "virtual void addUIInjectCode",
+         r"^    virtual void onStateChange\(uint8_t mode\) \{\}.*\n",
+         H_VIRTUAL),
+        ("manager decl", "void addUIInjectCode(Print &dest);",
+         r"^  void onStateChange\(uint8_t\);\n",
+         H_DECL),
+    ],
+    "wled00/um_manager.cpp": [
+        ("manager impl", "UsermodManager::addUIInjectCode",
+         r"^void UsermodManager::onStateChange\(uint8_t mode\).*\n",
+         UM_IMPL),
+    ],
+    "wled00/wled_server.cpp": [
+        ("/um.js endpoint", "\"/um.js\"",
+         r"^  server\.on\(F\(\"/freeheap\"\), HTTP_GET, \[\]\(AsyncWebServerRequest \*request\)\{\n.*\n  \}\);\n",
+         SERVER_ENDPOINT),
+    ],
+}
 
 
-def find_index_js(arg):
-    """Resolve the target index.js from an argument (tree root or direct path), or
-    auto-discover WLED trees in the current and script directory."""
+def find_tree(arg):
     if arg:
         p = Path(arg)
-        if p.is_file():
+        if (p / "wled00" / "data" / "index.js").is_file():
             return p
-        cand = p / "wled00" / "data" / "index.js"
-        if cand.is_file():
-            return cand
-        sys.exit("ERROR: no index.js found at '%s' (pass the WLED tree root or the file itself)" % arg)
-
-    roots = {Path.cwd(), Path(__file__).resolve().parent}
+        sys.exit("ERROR: '%s' does not look like a WLED tree (wled00/data/index.js missing)" % arg)
+    roots = [Path.cwd(), Path(__file__).resolve().parent]
     found = []
-    for root in roots:
-        for base in [root] + [d for d in root.iterdir() if d.is_dir()]:
-            cand = base / "wled00" / "data" / "index.js"
-            if cand.is_file() and cand not in found:
-                found.append(cand)
+    for root in dict.fromkeys(roots):
+        for base in [root] + sorted(x for x in root.iterdir() if x.is_dir()):
+            if (base / "wled00" / "data" / "index.js").is_file() and base not in found:
+                found.append(base)
     if not found:
         sys.exit("ERROR: no WLED tree found here. Pass the tree root as an argument.")
     if len(found) == 1:
@@ -192,8 +137,7 @@ def find_index_js(arg):
     for n, f in enumerate(found, 1):
         print("  %d) %s" % (n, f))
     try:
-        pick = int(input("Patch which one? "))
-        return found[pick - 1]
+        return found[int(input("Patch which one? ")) - 1]
     except (ValueError, IndexError, EOFError):
         sys.exit("Aborted.")
 
@@ -201,41 +145,53 @@ def find_index_js(arg):
 def main():
     args = [a for a in sys.argv[1:] if a != "--dry-run"]
     dry = "--dry-run" in sys.argv[1:]
-    target = find_index_js(args[0] if args else None)
-    print("Target: %s" % target)
+    tree = find_tree(args[0] if args else None)
+    print("Tree: %s" % tree)
 
-    raw = target.read_text(encoding="utf-8", newline="")
-    crlf = "\r\n" in raw
-    text = raw.replace("\r\n", "\n") if crlf else raw
-
-    new_text, results = apply_patch(text)
-
-    failed = [k for k, v in results.items() if v.startswith("FAILED")]
-    applied = [k for k, v in results.items() if v == "applied"]
-    for k in sorted(results):
-        print("  Edit %-16s %s" % (k + ":", results[k]))
+    applied_total, failed = 0, []
+    for rel, edits in FILES.items():
+        path = tree / Path(rel)
+        if not path.is_file():
+            print("  %-34s FAILED (file missing)" % rel)
+            failed.append(rel)
+            continue
+        raw = path.read_text(encoding="utf-8", newline="")
+        crlf = "\r\n" in raw
+        text = raw.replace("\r\n", "\n") if crlf else raw
+        applied_here = 0
+        file_ok = True
+        for name, marker, anchor, payload in edits:
+            label = "%s: %s" % (path.name, name)
+            if marker in text:
+                print("  %-34s already present" % label)
+                continue
+            m = re.search(anchor, text, re.M)
+            if not m:
+                print("  %-34s FAILED (anchor not found)" % label)
+                failed.append(label)
+                file_ok = False
+                continue
+            text = text[:m.end()] + payload + text[m.end():]
+            applied_here += 1
+            print("  %-34s applied" % label)
+        if applied_here and file_ok and not dry:
+            backup = path.with_suffix(path.suffix + ".mrbak")
+            if not backup.exists():
+                shutil.copy2(path, backup)
+            path.write_text(text.replace("\n", "\r\n") if crlf else text, encoding="utf-8", newline="")
+        applied_total += applied_here
 
     if failed:
-        print("\nNOT WRITTEN: %d edit(s) could not be anchored - the WLED UI code has" % len(failed))
-        print("changed. Apply those by hand using PowerManager-UI.patch.md,")
-        print("then update this script's anchors/payloads to match.")
+        print("\nNOT everything was patched: %d edit(s) did not match this WLED version." % len(failed))
+        print("Apply those by hand using PowerManager-UI.patch.md - or, if your WLED base already")
+        print("includes the upstream usermod UI injection mechanism, no patch is needed at all.")
         sys.exit(1)
-    if not applied:
-        print("\nNothing to do - patch already fully applied.")
-        return
-    if dry:
-        print("\nDry run: %d edit(s) would be applied, file not written." % len(applied))
-        return
-
-    backup = target.with_suffix(target.suffix + ".mrbak")
-    if not backup.exists():
-        shutil.copy2(target, backup)
-        print("Backup written: %s" % backup)
-
-    out = new_text.replace("\n", "\r\n") if crlf else new_text
-    target.write_text(out, encoding="utf-8", newline="")
-    print("\nOK: %d edit(s) applied. Rebuild the firmware now - html_ui.h regenerates" % len(applied))
-    print("from index.js and the terser step validates the inserted JavaScript.")
+    if applied_total == 0:
+        print("\nNothing to do - the hook is already fully applied.")
+    elif dry:
+        print("\nDry run: %d edit(s) would be applied, nothing written." % applied_total)
+    else:
+        print("\nOK: %d edit(s) applied. Rebuild the firmware now (html_ui.h regenerates from index.js)." % applied_total)
 
 
 if __name__ == "__main__":

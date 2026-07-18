@@ -1,123 +1,147 @@
-# PowerManager segment-coupling — core UI patch for `wled00/data/index.js`
+# WLED usermod UI injection hook — manual patch reference
 
-The segment-coupling feature (PowerManager usermod) is almost entirely usermod-only.
-The **one** core file it touches is `wled00/data/index.js` (the main web UI), which adds a
-"Power relays" checkbox row to each segment card. This file is overwritten whenever a new WLED
-nightly source tree is unpacked — **re-apply the four edits below after every nightly refresh.**
+Since PowerManager v1.1.0, the "Power relays" segment-card menu is generated **by the
+usermod itself**: the device serves it as JavaScript at `/um.js` and the main web UI
+injects it after every state render. The WLED source tree only needs this small,
+usermod-agnostic hook (designed by @blazoncek and proposed for WLED mainline — once your
+WLED base includes it, no patching is needed at all).
 
-The row only renders when the Power Manager usermod is present in `/json/state` (`state.PowerManager`),
-so builds without the usermod are visually and behaviorally unchanged.
+`apply_powermanager_ui_patch.py` applies everything below automatically. Use this
+document when the script reports a failed anchor (i.e. a WLED update moved the
+landmarks), or if you want to review exactly what changes.
 
-`html_ui.h` regenerates automatically on the next PlatformIO build (`pre:pio-scripts/build_ui.py`
-runs `npm run build`). Success indicator in build log: `Writing wled00/html_ui.h`.
-Terser minification doubles as a JS syntax check — a broken edit fails the build step.
+Four files are touched. Insertions only — no existing line is modified or removed.
 
 ---
 
-## Edit 1 — relay list, top of `populateSegments()` (~line 748)
+## 1. `wled00/data/index.js` (3 edits)
 
-Find:
+### 1a. The loader — insert directly **after** the `getURL()` function:
+
 ```js
-function populateSegments(s)
-{
-	var cn = "";
-	let li = lastinfo;
-	segCount = 0; lowestUnused = 0; lSeg = 0;
-```
-
-Append below:
-```js
-
-	// Power Manager usermod: relays that can be coupled to a segment (row is hidden when the usermod is absent)
-	let mrRelays = [];
-	if (s.PowerManager) mrRelays = (Array.isArray(s.PowerManager.relays) ? s.PowerManager.relays : [s.PowerManager])
-		.filter(r => r.seg !== undefined && r.seg != 99); // 99 = "any segment" mode, managed in usermod settings
-```
-
-## Edit 2 — build the collapsible relay menu per segment card (directly after the `let sndSim = ...;` block, ~line 830)
-
-Append after the `sndSim` statement (inside the `for (var inst of (s.seg||[]))` loop):
-```js
-		let mrRow = "";
-		if (mrRelays.length) {
-			// keep the relay list open across re-renders (each link click re-renders the cards from state)
-			let rlyOpen = gId(`seg${i}rlyl`) ? !gId(`seg${i}rlyl`).classList.contains('hide') : false;
-			let lnk = mrRelays.filter(r=>r.seg==i).map(r=>r.name?r.name:"Relay "+r.relay).join(", ");
-			mrRow = `<div class="check revchkl" style="cursor:pointer;" title="Link power relays: their output is cut when this segment is off" `+
-						`onclick="gId('seg${i}rlyl').classList.toggle('hide');gId('seg${i}rlyc').classList.toggle('exp');">`+
-					`Power relays: ${lnk?lnk:"none"}`+
-					`<i class="icons e-icon${rlyOpen?" exp":""}" id="seg${i}rlyc" style="position:absolute;left:0;top:3px;transition:transform .3s;">&#xe395;</i></div>`+
-					`<div id="seg${i}rlyl" class="${rlyOpen?'':'hide'}" style="margin-left:16px;">`;
-			for (const r of mrRelays) {
-				// hint where the relay is currently linked: this segment (accent) or another one (dimmed)
-				let other = "";
-				if (r.seg == i) {
-					other = ` <span style="color:var(--c-g);font-size:smaller;">(this segment)</span>`;
-				} else if (r.seg >= 0) {
-					let os = (s.seg||[]).find(q => q.id == r.seg);
-					other = ` <span style="color:var(--c-d);font-size:smaller;">(${os&&os.n ? os.n : "Segment "+r.seg})</span>`;
-				}
-				mrRow += `<label class="check revchkl">${r.name?r.name:"Relay "+r.relay}${other}`+
-							`<input type="checkbox" id="seg${i}rly${r.relay}" onchange="setSegRly(${i},${r.relay})" ${r.seg==i?"checked":""}>`+
-							`<span class="checkmark"></span></label>`;
-			}
-			mrRow += `</div>`;
-		}
-```
-
-(Styling note: the summary line reuses the `check revchkl` classes — not `lbl-l` — so it matches
-the Reverse/Mirror rows in font size and left alignment. A WIcons expand chevron (`&#xe395;`)
-sits absolutely at left:0 where a checkbox would be, and toggles the global `.exp` class to
-rotate 180° on open, mirroring the segment-card expander. The checklist is indented 16px.)
-
-## Edit 3 — insert the row into the card template (just above the delete/repeat buttons, ~line 900)
-
-Find (end of the "Transpose/Mirror effect" label, before the del div):
-```js
-					`<span class="checkmark"></span>`+
-					`</label>`+
-					`<div class="del">`+
-```
-
-Change to:
-```js
-					`<span class="checkmark"></span>`+
-					`</label>`+
-					mrRow +
-					`<div class="del">`+
-```
-
-(Note: `<span class="checkmark">` appears several times in the file — this is the one directly
-followed by `` `<div class="del">` ``.)
-
-## Edit 4 — click handler (after `function setSegBri(s) {...}`, ~line 2430)
-
-Append after `setSegBri`:
-```js
-
-// Power Manager usermod: (un)couple relay r to/from segment s (power cutoff follows segment on/off)
-function setSegRly(s, r)
-{
-	var lnk = gId(`seg${s}rly${r}`).checked;
-	var obj = {"PowerManager": {"relay": r, "seg": lnk ? s : -1}};
-	requestJson(obj);
+function getURL(path) {
+	return (loc ? locproto + "//" + locip : "") + path;
 }
 ```
 
+insert:
+
+```js
+
+// load usermod UI inject code (served by the device when usermods provide any);
+// umInject(state) is then called after every state render, see readState()
+function loadUmInject() {
+	if (gId("um")) return; // already loaded
+	let scE = d.createElement("script");
+	scE.id = "um";
+	scE.src = getURL("/um.js");
+	scE.async = false;
+	scE.onload = () => {
+		if (typeof umInject == "function") requestJson(); // render once with state available
+	};
+	scE.onerror = (ev) => {
+		console.log("Usermod inject script not present or failed to load", ev);
+	};
+	d.body.appendChild(scE);
+}
+```
+
+### 1b. The render hook — at the **end of `readState(s)`**, between `updateUI();` and `return true;`:
+
+```js
+	updateUI();
+	if (typeof umInject == "function") umInject(s); // usermod UI injections (see loadUmInject())
+	return true;
+}
+```
+
+### 1c. The load trigger — in `requestJson()`'s fetch handler, directly **after** `readState(s);`:
+
+```js
+			var s = json.state ? json.state : json;
+			readState(s);
+			if (json?.info?.u) loadUmInject(); // usermods present: load their UI inject code
+
+			reqsLegal = true;
+```
+
+(`info.u` is present when the build contains usermods, so stock builds never fetch the script.)
+
 ---
 
-## How it works / design notes
+## 2. `wled00/fcn_declare.h` (3 edits)
 
-* Data source: the usermod's `addToJsonState()` puts `{relays:[{relay,state,seg,name?},...]}` into
-  every state response (`name` only present when set); `requestJson()` always posts `v:true`, so the
-  UI re-renders segment cards from the device's authoritative state after every click (takeovers
-  re-sync automatically).
-* The menu is collapsed by default and shows the linked relay names in its summary line; it stays
-  open across the post-click re-render (open/closed state is read back from the old DOM, same trick
-  the cards use for their own expanded state). Unnamed relays display as "Relay N".
-* Checking a box sends `{"PowerManager":{"relay":R,"seg":<segId>}}`; unchecking sends `"seg":-1`.
-  The usermod persists changes via `configNeedsWrite`.
-* Relays in "any segment" master mode (`seg == 99`) are deliberately hidden from the cards so the
-  master-PSU relay can't be accidentally re-linked; manage it from Usermod settings.
-* Known cosmetic edge: a `POWERMANAGER_MAX_RELAYS=1` build reports relay 0 in the state object even
-  when no pin is assigned (pre-existing usermod API shape), which would show one checkbox.
+### 2a. Directly **before** `class Usermod {` (after the `um_data_size` constant):
+
+```cpp
+// usermods can inject JS into the main web UI via addUIInjectCode() (served at /um.js);
+// external usermods can test this macro to stay compatible with older WLED bases
+#define WLED_ENABLE_UM_UI_INJECT
+```
+
+PowerManager guards its menu code with `#ifdef WLED_ENABLE_UM_UI_INJECT`, so the usermod
+also compiles cleanly against stock WLED bases without this hook (the menu is simply absent
+and relays are linked on the settings page instead).
+
+### 2b. In `class Usermod`, after the `onStateChange` virtual:
+
+```cpp
+    virtual void onStateChange(uint8_t mode) {}                              // fired upon WLED state change
+    virtual void addUIInjectCode(Print &dest) {}                             // print JS code injecting UI elements into the main web UI (served at /um.js, run after every state render)
+```
+
+### 2c. In `namespace UsermodManager`, after the `onStateChange` declaration:
+
+```cpp
+  void onStateChange(uint8_t);
+  void addUIInjectCode(Print &dest);
+```
+
+---
+
+## 3. `wled00/um_manager.cpp` (1 edit)
+
+After the `UsermodManager::onStateChange` implementation line:
+
+```cpp
+void UsermodManager::addUIInjectCode(Print &dest) { for (auto mod = DYNARRAY_BEGIN(usermods); mod < DYNARRAY_END(usermods); ++mod) (*mod)->addUIInjectCode(dest); } // collect usermod UI inject JS (served at /um.js)
+```
+
+---
+
+## 4. `wled00/wled_server.cpp` (1 edit)
+
+In `initServer()`, after the `/freeheap` handler block:
+
+```cpp
+  // usermod UI inject code: the main UI loads this script and calls umInject(state) after
+  // every state render, letting usermods add their own elements without patching index.js
+  server.on(F("/um.js"), HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream(FPSTR(CONTENT_TYPE_JAVASCRIPT));
+    response->addHeader(FPSTR(s_cache_control), F("no-store"));
+    response->addHeader(F("Expires"), F("0"));
+    response->print(F("function umInject(s){"));
+    UsermodManager::addUIInjectCode(*response);
+    response->print(F("}"));
+    request->send(response);
+  });
+```
+
+---
+
+## Design notes
+
+- **How it fits together:** every usermod may override `addUIInjectCode(Print&)` and print
+  plain JavaScript. `/um.js` concatenates all of it inside `function umInject(s){...}`.
+  The main UI loads the script once and calls `umInject(s)` with the fresh state object at
+  the end of every `readState()` — so injected elements survive full UI re-renders
+  (`populateSegments()` rebuilds the segment cards on every state update), for both fetch
+  and WebSocket updates.
+- **Zero cost when unused:** usermods that don't override the virtual contribute nothing;
+  without any usermod the endpoint serves an empty function, and `info.u` gating means
+  stock builds never even request it.
+- **For usermod authors:** injected code runs on the *main UI* page — only its globals
+  exist (`d`, `gId`, `requestJson`, ...). Settings-page helpers like `cE()` are **not**
+  available; create elements with `d.createElement()`.
+- **After patching, rebuild the firmware**: `html_ui.h` is regenerated from `index.js`,
+  and the terser minification step doubles as a syntax check of the inserted JS.

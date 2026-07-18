@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem Applies the PowerManager "Power relays" segment-card patch to a WLED tree's index.js.
+rem Applies the usermod web-UI injection hook (needed by PowerManager's segment menu) to a WLED tree.
 rem Usage: double-click (auto-discovers WLED trees next to this file), or:
 rem        Apply-PowerManager-UI-Patch.bat <path-to-wled-tree> [--dry-run]
 

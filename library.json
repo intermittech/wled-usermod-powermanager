@@ -1,6 +1,6 @@
 {
   "name": "wled-usermod-powermanager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Advanced power switching for WLED: segment-coupled relay/MOSFET outputs, Master AC relay, PSU stabilization and anti-flash power sequencing. Grown from the built-in multi_relay usermod.",
   "keywords": "wled, usermod, relay, power, segment, aw9523, pcf8574",
   "license": "EUPL-1.2",

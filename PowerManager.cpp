@@ -363,6 +363,14 @@ class PowerManager : public Usermod {
      */
     void handleOverlayDraw() override;
 
+    /**
+     * streams the JavaScript that injects the segment-card "Power relays" menu into the
+     * main web UI (served at /um.js; the UI runs it after every state render)
+     */
+#ifdef WLED_ENABLE_UM_UI_INJECT // WLED base includes the usermod web-UI injection mechanism
+    void addUIInjectCode(Print &dest) override;
+#endif
+
 #ifndef WLED_DISABLE_MQTT
     bool onMqttMessage(char* topic, char* payload) override;
     void onMqttConnect(bool sessionPresent) override;
@@ -1149,6 +1157,62 @@ void PowerManager::handleOverlayDraw() {
     for (unsigned p = seg.start; p < seg.stop; p++) strip.setPixelColor(p, 0);
   }
 }
+
+#ifdef WLED_ENABLE_UM_UI_INJECT
+/**
+ * Segment-card "Power relays" menu, injected into the main UI via the /um.js mechanism
+ * (concept by @blazoncek). This runs as the body of umInject(s) after every state render,
+ * so the menu survives segment card re-renders; `s` is the freshly applied state object,
+ * carrying our relay list from addToJsonState(). Menu open/close state persists in
+ * window.pmOpen across renders. When the usermod is disabled, s.PowerManager is absent
+ * and any previously injected menus are removed. On WLED bases without the injection
+ * mechanism this block compiles out and relays are linked on the settings page instead.
+ */
+void PowerManager::addUIInjectCode(Print &dest) {
+  dest.print(F(
+    "let pmE=t=>d.createElement(t);" // cE() only exists on the settings pages, not in the main UI
+    "let pmR=[];"
+    "if(s&&s.PowerManager)pmR=(Array.isArray(s.PowerManager.relays)?s.PowerManager.relays:[s.PowerManager])"
+      ".filter(r=>r.seg!==undefined&&r.seg!=99);"
+    "window.pmOpen=window.pmOpen||{};"
+    "d.querySelectorAll('#segcont .segin').forEach(sc=>{"
+      "let old=sc.querySelector('.pmrow');if(old)old.remove();"
+      "old=sc.querySelector('.pmlist');if(old)old.remove();"
+      "if(!pmR.length)return;"
+      "let i=parseInt(sc.id.replace('seg',''));if(isNaN(i))return;"
+  ));
+  dest.print(F(
+      "let lnk=pmR.filter(r=>r.seg==i).map(r=>r.name||('Relay '+r.relay)).join(', ');"
+      "let hd=pmE('div');hd.className='check revchkl pmrow';hd.style.cursor='pointer';"
+      "hd.title='Link power relays: their output is cut when this segment is off';"
+      "hd.textContent='Power relays: '+(lnk||'none');"
+      "let ic=pmE('i');ic.className='icons e-icon'+(pmOpen[i]?' exp':'');"
+      "ic.style.cssText='position:absolute;left:0;top:3px;transition:transform .3s;';"
+      "ic.innerHTML='&#xe395;';hd.appendChild(ic);"
+      "let ls=pmE('div');ls.className='pmlist'+(pmOpen[i]?'':' hide');ls.style.marginLeft='16px';"
+      "hd.onclick=()=>{pmOpen[i]=!pmOpen[i];ls.classList.toggle('hide',!pmOpen[i]);ic.classList.toggle('exp',pmOpen[i]);};"
+  ));
+  dest.print(F(
+      "pmR.forEach(r=>{"
+        "let lb=pmE('label');lb.className='check revchkl';"
+        "lb.append(r.name||('Relay '+r.relay));"
+        "let sp;"
+        "if(r.seg==i){sp=pmE('span');sp.style.cssText='color:var(--c-g);font-size:smaller;';"
+          "sp.textContent=' (this segment)';lb.appendChild(sp);}"
+        "else if(r.seg>=0){let os=(s.seg||[]).find(q=>q.id==r.seg);sp=pmE('span');"
+          "sp.style.cssText='color:var(--c-d);font-size:smaller;';"
+          "sp.textContent=' ('+(os&&os.n?os.n:'Segment '+r.seg)+')';lb.appendChild(sp);}"
+        "let cb=pmE('input');cb.type='checkbox';cb.checked=(r.seg==i);"
+        "cb.onchange=()=>{requestJson({PowerManager:{relay:r.relay,seg:cb.checked?i:-1}});};"
+        "let cm=pmE('span');cm.className='checkmark';"
+        "lb.appendChild(cb);lb.appendChild(cm);ls.appendChild(lb);"
+      "});"
+      "let dl=sc.querySelector('div.del');"
+      "if(dl){sc.insertBefore(hd,dl);sc.insertBefore(ls,dl);}else{sc.appendChild(hd);sc.appendChild(ls);}"
+    "});"
+  ));
+}
+#endif // WLED_ENABLE_UM_UI_INJECT
 
 /**
  * handleButton() can be used to override default button behaviour. Returning true
